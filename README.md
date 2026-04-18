@@ -1,118 +1,127 @@
 # Eclipse Addon
 
-Eclipse is a client-side Meteor Client addon for Minecraft 1.21.11.
-It focuses on server diagnostics, movement tuning, Eclipse-themed UI visuals,
-Litematica schematic printing, and small quality-of-life tools.
+[English version](README_EN.md)
 
-This is a Fabric client mod and must be loaded together with Meteor Client.
-Use it only on servers where this kind of client-side tooling is allowed.
+Eclipse - клиентский аддон для Meteor Client под Minecraft `1.21.11`.
+Он добавляет модули для диагностики сервера, настройки движения, визуального
+оформления Eclipse, печати схем через Litematica и небольших удобных функций.
 
-## Features
+Это Fabric-мод для клиента. Он должен запускаться вместе с Meteor Client.
+Используй его только там, где такие клиентские инструменты разрешены правилами
+сервера.
 
-### Visuals and UI
+## Статус проекта
 
-- `eclipse-visuals` customizes the title screen, menu backgrounds, branding,
-  crosshair behavior, and local skin/cape preview UI.
-- `eclipse-camera` adjusts first-person FOV, view height, and camera-based
-  block targeting.
-- `middle-click-info` adds a top overlay notification for middle-click target
-  inspection. Middle-clicking a player adds them to Meteor friends; clicking a
-  block or non-player entity shows its name, registry id, and block position
-  where applicable.
+- Проект находится в бета-стадии.
+- Проект на 100% сделан ИИ по пользовательским требованиям и правкам.
+- Разработка и настройка ведутся только под сервер `play.karasique.com`.
+  Работа на других серверах не гарантируется.
+- `litematica-printer` является переработанным аддоном от игрока `twilight`,
+  адаптированным под текущий проект и его серверные особенности.
 
-### Server diagnostics
+## Возможности
 
-- `server-diagnostics` records corrections, velocity changes, movement data,
-  packets, active modules, and generated analysis.
-- `eclipse-server-intel` combines NewChunks, SoundLocator, coordinate logging,
-  and ore update logging in one lightweight module.
-- `eclipse-custom-packets` sends controlled packet pulses for diagnostics and
-  server behavior testing.
-- `eclipse-name-guard` reports duplicate Meteor module names before they cause
-  hard-to-debug conflicts.
-- `eclipse-anti-crash` cancels selected suspicious packets that can destabilize
-  the client.
+### Визуал и интерфейс
 
-### Movement and combat-adjacent utilities
+- `eclipse-visuals` меняет главный экран, фон меню, брендинг, поведение
+  прицела и локальный предпросмотр скина/плаща.
+- `eclipse-camera` настраивает FOV от первого лица, высоту камеры и
+  наведение на блоки через камеру.
+- `middle-click-info` добавляет верхнее всплывающее уведомление при нажатии
+  колесиком мыши. Если цель - игрок, он добавляется в друзья Meteor. Если цель
+  блок или другая сущность, показывается имя, registry id и координаты блока,
+  где это применимо.
 
-- `eclipse-move` provides conservative configurable movement tuning.
-- `eclipse-flight` includes PacketFly, flight, glide, boost, and jetpack-style
-  movement profiles.
-- `eclipse-elytra` adds elytra fly, ground glide, and chestplate fake-fly
-  profiles.
-- `eclipse-no-slow` uses movement multipliers and slot/offhand packet pulses.
-- `eclipse-velocity` scales knockback or applies velocity cancellation modes.
-- `pearl-phase` throws a pearl near a wall and sends a configurable phase
-  packet sequence.
-- `ping-spoof` queues selected latency packets and releases them after a
-  configurable delay.
+### Диагностика сервера
 
-### Litematica printing
+- `server-diagnostics` записывает коррекции сервера, velocity, движение,
+  пакеты, активные модули и сформированный анализ.
+- `eclipse-server-intel` объединяет NewChunks, SoundLocator, лог координат и
+  лог обновлений руд.
+- `eclipse-custom-packets` отправляет контролируемые packet-pulse действия для
+  тестирования поведения сервера.
+- `eclipse-name-guard` сообщает о дублях имён модулей Meteor до того, как они
+  приведут к конфликтам.
+- `eclipse-anti-crash` отменяет часть подозрительных пакетов, которые могут
+  дестабилизировать клиент.
 
-- `litematica-printer` reads the currently loaded Litematica schematic through
-  a reflection bridge and places matching blocks with configurable pacing.
-- The printer can render the current placement queue in-world.
-- The vanilla experience bar can be replaced with schematic build progress
-  while printing.
-- Placement safety options include entity checks, TPS pause, correction pause,
-  retry delays, falling-block protection, inventory movement, and swap-back.
+### Движение и служебные модули
 
-Litematica is optional for launching the addon, but it is required for the
-printer module to find and use a loaded schematic.
+- `eclipse-move` даёт настраиваемое движение с осторожными значениями.
+- `eclipse-flight` содержит PacketFly, flight, glide, boost и jetpack-профили.
+- `eclipse-elytra` добавляет elytra fly, ground glide и chestplate fake-fly.
+- `eclipse-no-slow` использует множители движения и slot/offhand packet pulses.
+- `eclipse-velocity` меняет knockback или включает режимы отмены velocity.
+- `pearl-phase` бросает жемчуг около стены и отправляет настраиваемую
+  последовательность phase-пакетов.
+- `ping-spoof` задерживает выбранные latency-пакеты и отправляет их после
+  заданной паузы.
 
-## Requirements
+### Litematica Printer
+
+- `litematica-printer` читает загруженную схему Litematica через reflection
+  bridge и ставит нужные блоки с настраиваемым темпом.
+- Принтер умеет рендерить текущую очередь постановки блоков в мире.
+- Полоска опыта может заменяться на прогресс строительства выбранной схемы.
+- Есть проверки безопасности: сущности на пути, TPS pause, correction pause,
+  retry delay, защита от falling blocks, перенос предметов в хотбар и swap-back.
+
+Litematica не обязательна для запуска аддона, но нужна для работы
+`litematica-printer` с загруженной схемой.
+
+## Требования
 
 - Minecraft `1.21.11`
 - Java `21`
-- Fabric Loader `0.18.2` or newer compatible version
+- Fabric Loader `0.18.2` или совместимая версия новее
 - Meteor Client `1.21.11-SNAPSHOT`
-- Litematica for `1.21.11` if you want to use `litematica-printer`
+- Litematica для `1.21.11`, если нужен `litematica-printer`
 
-Exact dependency versions are defined in
+Точные версии зависимостей указаны в
 [`gradle/libs.versions.toml`](gradle/libs.versions.toml).
 
-## Installation
+## Установка
 
-1. Install Fabric Loader for Minecraft `1.21.11`.
-2. Install Meteor Client for the same Minecraft version.
-3. Build or download the Eclipse addon jar.
-4. Put the Eclipse jar into your Minecraft `mods` folder together with Meteor.
-5. Start the game and open Meteor's module list.
-6. Find the modules under the `Eclipse` category.
+1. Установи Fabric Loader для Minecraft `1.21.11`.
+2. Установи Meteor Client под ту же версию Minecraft.
+3. Собери или скачай jar-файл Eclipse Addon.
+4. Положи jar Eclipse в папку `mods` рядом с Meteor Client.
+5. Запусти игру и открой список модулей Meteor.
+6. Модули будут в категории `Eclipse`.
 
-## Building
+## Сборка
 
-On Windows:
+В Windows:
 
 ```powershell
 .\gradlew.bat build
 ```
 
-On Linux or macOS:
+В Linux или macOS:
 
 ```bash
 ./gradlew build
 ```
 
-The compiled jar is created in:
+Готовый jar появляется в папке:
 
 ```text
 build/libs/
 ```
 
-## Development
+## Разработка
 
-Useful project paths:
+Основные пути проекта:
 
-- `src/main/java/eclipse/Eclipse.java` registers the addon category and modules.
-- `src/main/java/eclipse/modules/` contains the Eclipse modules.
-- `src/main/java/eclipse/gui/` contains custom GUI and overlay code.
-- `src/main/java/com/eclipse/mixin/` contains client mixins.
-- `src/main/resources/eclipse.mixins.json` registers mixins.
-- `src/main/resources/fabric.mod.json` contains Fabric metadata.
-- `src/main/resources/assets/eclipse/` contains textures and language files.
+- `src/main/java/eclipse/Eclipse.java` регистрирует категорию и модули аддона.
+- `src/main/java/eclipse/modules/` содержит модули Eclipse.
+- `src/main/java/eclipse/gui/` содержит GUI и overlay-код.
+- `src/main/java/com/eclipse/mixin/` содержит client mixins.
+- `src/main/resources/eclipse.mixins.json` регистрирует mixins.
+- `src/main/resources/fabric.mod.json` содержит metadata Fabric-мода.
+- `src/main/resources/assets/eclipse/` содержит текстуры и языковые файлы.
 
-After changing code or resources, run:
+После изменения кода или ресурсов запускай:
 
 ```powershell
 .\gradlew.bat build
@@ -120,21 +129,21 @@ After changing code or resources, run:
 
 ## GitHub Actions
 
-The repository includes two workflows:
+В репозитории есть два workflow:
 
-- `dev_build.yml` builds the project on every push and publishes a snapshot
-  release artifact.
-- `pull_request.yml` builds pull requests and uploads compiled artifacts.
+- `dev_build.yml` собирает проект при каждом push и публикует snapshot artifact.
+- `pull_request.yml` собирает pull request и загружает compiled artifacts.
 
-## Notes
+## Заметки
 
-- Server behavior differs heavily between configurations. Treat movement and
-  packet modules as diagnostic tools that need per-server tuning.
-- The addon does not include Meteor Client, Fabric Loader, Litematica, or
-  Minecraft itself.
-- Generated Gradle output, Minecraft runtime files, and IDE files are ignored
-  through `.gitignore`.
+- Поведение серверов сильно отличается. Movement и packet-модули лучше считать
+  диагностическими инструментами, которые нужно настраивать под конкретный
+  сервер.
+- Аддон не включает в себя Meteor Client, Fabric Loader, Litematica или сам
+  Minecraft.
+- Gradle output, runtime-файлы Minecraft и IDE-файлы исключены через
+  `.gitignore`.
 
-## License
+## Лицензия
 
-This project uses the `CC0-1.0` license included in [`LICENSE`](LICENSE).
+Проект использует лицензию `CC0-1.0`, текст находится в [`LICENSE`](LICENSE).

@@ -3,7 +3,7 @@
   "id": "eclipse",
   "version": "${version}",
   "name": "Eclipse",
-  "description": "Meteor Client addon for Minecraft 1.21.11 with Eclipse UI visuals, server diagnostics, movement tuning, Litematica printing, and utility tools.",
+  "description": "Beta Meteor Client addon for Minecraft 1.21.11, tuned for play.karasique.com with Eclipse UI visuals, diagnostics, movement tuning, Litematica printing, and utility tools.",
   "authors": ["Rud"],
   "contact": {
     "homepage": "https://github.com/leontevova2313-max/Eclipse-addon",
