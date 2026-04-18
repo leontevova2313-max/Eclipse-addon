@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "eclipse",
+  "version": "${version}",
+  "name": "Eclipse",
+  "description": "Meteor Client addon for Minecraft 1.21.11 with Eclipse UI visuals, server diagnostics, movement tuning, Litematica printing, and utility tools.",
+  "authors": ["Rud"],
+  "contact": {
+    "homepage": "https://github.com/leontevova2313-max/Eclipse-addon",
+    "sources": "https://github.com/leontevova2313-max/Eclipse-addon",
+    "issues": "https://github.com/leontevova2313-max/Eclipse-addon/issues"
+  },
+  "license": "CC0-1.0",
+  "environment": "client",
+
+  "entrypoints": {
+    "meteor": [
+      "eclipse.Eclipse"
+    ]
+  },
+
+  "mixins": [
+    "eclipse.mixins.json"
+  ],
+
+  "depends": {
+    "fabricloader": "*",
+    "minecraft": "*",
+    "meteor-client": "*"
+  }
+}

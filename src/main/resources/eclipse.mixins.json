@@ -1,0 +1,20 @@
+{
+  "required": true,
+  "package": "com.eclipse.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "CameraMixin",
+    "ClientPlayerEntityMixin",
+    "ExperienceBarMixin",
+    "GameRendererMixin",
+    "InGameHudMixin",
+    "InputAccessor",
+    "ScreenAccessor",
+    "ScreenBackgroundMixin",
+    "ScreenOverlayMixin",
+    "TitleScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

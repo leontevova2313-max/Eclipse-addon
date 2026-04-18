@@ -1,0 +1,19 @@
+{
+  "eclipse.menu.customization": "Customization",
+  "eclipse.customization.title": "Eclipse Customization",
+  "eclipse.customization.skin": "Skin: %s",
+  "eclipse.customization.cape": "Cape: %s",
+  "eclipse.customization.model": "Model: %s",
+  "eclipse.customization.model.classic": "Classic",
+  "eclipse.customization.model.slim": "Slim",
+  "eclipse.customization.open_folder": "Copy Local Folder Path",
+  "eclipse.customization.done": "Done",
+  "eclipse.customization.preview_hint": "Local preview. The button copies the folder path.",
+  "eclipse.skin.default": "Default",
+  "eclipse.skin.local_1": "Local 1",
+  "eclipse.skin.local_2": "Local 2",
+  "eclipse.skin.local_3": "Local 3",
+  "eclipse.cape.none": "None",
+  "eclipse.cape.local_1": "Local Cape 1",
+  "eclipse.cape.local_2": "Local Cape 2"
+}
