@@ -6,10 +6,17 @@ public final class EclipseConfig {
     private static boolean titleCrossfade = true;
     private static boolean titleLogo = true;
     private static boolean screenBackgrounds = true;
+    private static boolean allScreenBackgrounds = true;
     private static boolean performanceMode = false;
     private static int frameTimeMs = 1800;
     private static int logoWidth = 430;
     private static int logoY = 16;
+    private static int logoStarSize = 3;
+    private static int logoLineAlpha = 210;
+    private static int logoColor = 0xFFFFFFFF;
+    private static int logoGlowColor = 0x8829D6FF;
+    private static boolean logoTwinkle = true;
+    private static int backgroundDim = 36;
     private static boolean crosshair = false;
     private static int crosshairGap = 4;
     private static int crosshairLength = 6;
@@ -71,6 +78,22 @@ public final class EclipseConfig {
         screenBackgrounds = value;
     }
 
+    public static boolean allScreenBackgrounds() {
+        return allScreenBackgrounds;
+    }
+
+    public static void allScreenBackgrounds(boolean value) {
+        allScreenBackgrounds = value;
+    }
+
+    public static int backgroundDim() {
+        return backgroundDim;
+    }
+
+    public static void backgroundDim(int value) {
+        backgroundDim = Math.max(0, Math.min(220, value));
+    }
+
     public static boolean performanceMode() {
         return performanceMode;
     }
@@ -101,6 +124,46 @@ public final class EclipseConfig {
 
     public static void logoY(int value) {
         logoY = value;
+    }
+
+    public static int logoStarSize() {
+        return logoStarSize;
+    }
+
+    public static void logoStarSize(int value) {
+        logoStarSize = value;
+    }
+
+    public static int logoLineAlpha() {
+        return logoLineAlpha;
+    }
+
+    public static void logoLineAlpha(int value) {
+        logoLineAlpha = value;
+    }
+
+    public static int logoColor() {
+        return logoColor;
+    }
+
+    public static void logoColor(int value) {
+        logoColor = value;
+    }
+
+    public static int logoGlowColor() {
+        return logoGlowColor;
+    }
+
+    public static void logoGlowColor(int value) {
+        logoGlowColor = value;
+    }
+
+    public static boolean logoTwinkle() {
+        return logoTwinkle;
+    }
+
+    public static void logoTwinkle(boolean value) {
+        logoTwinkle = value;
     }
 
     public static boolean crosshair() {

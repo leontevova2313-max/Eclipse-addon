@@ -16,6 +16,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Screen.class)
 public abstract class ScreenBackgroundMixin {
     @Unique
+    private static final Identifier DEFAULT_BG = Identifier.of("eclipse", "textures/gui/bg.png");
+
+    @Unique
     private static final Identifier OPTIONS_BG = Identifier.of("eclipse", "textures/gui/bg_options.png");
 
     @Unique
@@ -32,6 +35,8 @@ public abstract class ScreenBackgroundMixin {
             background = MULTIPLAYER_BG;
         } else if (self instanceof OptionsScreen) {
             background = OPTIONS_BG;
+        } else if (EclipseConfig.allScreenBackgrounds()) {
+            background = DEFAULT_BG;
         } else {
             return;
         }
@@ -48,6 +53,11 @@ public abstract class ScreenBackgroundMixin {
                 1920, 1080,
                 1920, 1080
         );
+
+        int dim = EclipseConfig.backgroundDim();
+        if (dim > 0) {
+            context.fill(0, 0, sw, sh, (Math.min(220, dim) << 24) | 0x00000610);
+        }
 
         ci.cancel();
     }

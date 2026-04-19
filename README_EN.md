@@ -37,6 +37,9 @@ Use it only on servers where this kind of client-side tooling is allowed.
   and ore update logging in one lightweight module.
 - `eclipse-custom-packets` sends controlled packet pulses for diagnostics and
   server behavior testing.
+- `external-cheat-trace` writes a packet-level trace of other client
+  modules/cheats loaded in the same Fabric instance. It is meant for analyzing
+  closed-source behavior without source code.
 - `eclipse-name-guard` reports duplicate Meteor module names before they cause
   hard-to-debug conflicts.
 - `eclipse-anti-crash` cancels selected suspicious packets that can destabilize

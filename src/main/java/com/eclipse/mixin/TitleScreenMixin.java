@@ -1,6 +1,7 @@
 package com.eclipse.mixin;
 
 import eclipse.EclipseConfig;
+import eclipse.gui.ConstellationLogoRenderer;
 import eclipse.gui.EclipseCustomizationScreen;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.LogoDrawer;
@@ -24,15 +25,6 @@ public abstract class TitleScreenMixin {
 
     @Unique
     private static final int TEX_H = 540;
-
-    @Unique
-    private static final int LOGO_W = 1024;
-
-    @Unique
-    private static final int LOGO_H = 256;
-
-    @Unique
-    private static final Identifier LOGO = Identifier.of("eclipse", "textures/gui/title/eclipse_logo.png");
 
     @Unique
     private static final Identifier[] FRAMES = new Identifier[] {
@@ -114,6 +106,11 @@ public abstract class TitleScreenMixin {
             );
         }
 
+        int dim = EclipseConfig.backgroundDim();
+        if (dim > 0) {
+            context.fill(0, 0, sw, sh, (Math.min(220, dim) << 24) | 0x00000610);
+        }
+
         ci.cancel();
     }
 
@@ -136,18 +133,21 @@ public abstract class TitleScreenMixin {
 
         int sw = context.getScaledWindowWidth();
         int logoW = Math.min(EclipseConfig.logoWidth(), Math.max(180, sw - 40));
-        int logoH = logoW * LOGO_H / LOGO_W;
+        int logoH = ConstellationLogoRenderer.height(logoW);
         int x = (sw - logoW) / 2;
         int y = EclipseConfig.logoY();
 
-        context.drawTexture(
-            RenderPipelines.GUI_TEXTURED,
-            LOGO,
-            x, y,
-            0.0F, 0.0F,
-            logoW, logoH,
-            LOGO_W, LOGO_H,
-            LOGO_W, LOGO_H
+        ConstellationLogoRenderer.render(
+            context,
+            "ECLIPSE",
+            x,
+            y + Math.max(0, 36 - logoH / 3),
+            logoW,
+            EclipseConfig.logoColor(),
+            EclipseConfig.logoGlowColor(),
+            EclipseConfig.logoStarSize(),
+            EclipseConfig.logoLineAlpha(),
+            EclipseConfig.logoTwinkle()
         );
     }
 }

@@ -53,7 +53,7 @@ public class EclipseVisuals extends Module {
 
     private final Setting<Boolean> titleLogo = sgTitle.add(new BoolSetting.Builder()
         .name("title-logo")
-        .description("Replaces the vanilla Minecraft logo with the Eclipse title mark.")
+        .description("Replaces the vanilla Minecraft logo with the Eclipse constellation title mark.")
         .defaultValue(true)
         .onChanged(EclipseConfig::titleLogo)
         .build()
@@ -79,11 +79,73 @@ public class EclipseVisuals extends Module {
         .build()
     );
 
+    private final Setting<Integer> logoStarSize = sgTitle.add(new IntSetting.Builder()
+        .name("logo-star-size")
+        .description("Base star size in the constellation title.")
+        .defaultValue(3)
+        .range(1, 10)
+        .sliderRange(1, 7)
+        .onChanged(EclipseConfig::logoStarSize)
+        .build()
+    );
+
+    private final Setting<Integer> logoLineAlpha = sgTitle.add(new IntSetting.Builder()
+        .name("logo-line-alpha")
+        .description("Opacity of the constellation line strokes.")
+        .defaultValue(210)
+        .range(0, 255)
+        .sliderRange(40, 255)
+        .onChanged(EclipseConfig::logoLineAlpha)
+        .build()
+    );
+
+    private final Setting<Boolean> logoTwinkle = sgTitle.add(new BoolSetting.Builder()
+        .name("logo-twinkle")
+        .description("Animates small star pulses in the title mark.")
+        .defaultValue(true)
+        .onChanged(EclipseConfig::logoTwinkle)
+        .build()
+    );
+
+    private final Setting<SettingColor> logoColor = sgTitle.add(new ColorSetting.Builder()
+        .name("logo-color")
+        .description("Main constellation title color.")
+        .defaultValue(new SettingColor(255, 255, 255, 255))
+        .onChanged(color -> EclipseConfig.logoColor(color.getPacked()))
+        .build()
+    );
+
+    private final Setting<SettingColor> logoGlowColor = sgTitle.add(new ColorSetting.Builder()
+        .name("logo-glow-color")
+        .description("Glow color behind title stars and lines.")
+        .defaultValue(new SettingColor(41, 214, 255, 136))
+        .onChanged(color -> EclipseConfig.logoGlowColor(color.getPacked()))
+        .build()
+    );
+
     private final Setting<Boolean> screenBackgrounds = sgGeneral.add(new BoolSetting.Builder()
         .name("screen-backgrounds")
         .description("Applies Eclipse backgrounds to supported Minecraft screens.")
         .defaultValue(true)
         .onChanged(EclipseConfig::screenBackgrounds)
+        .build()
+    );
+
+    private final Setting<Boolean> allScreenBackgrounds = sgGeneral.add(new BoolSetting.Builder()
+        .name("all-screen-backgrounds")
+        .description("Uses the Eclipse background on every vanilla screen that calls renderBackground.")
+        .defaultValue(true)
+        .onChanged(EclipseConfig::allScreenBackgrounds)
+        .build()
+    );
+
+    private final Setting<Integer> backgroundDim = sgGeneral.add(new IntSetting.Builder()
+        .name("background-dim")
+        .description("Dark overlay strength over menu backgrounds.")
+        .defaultValue(36)
+        .range(0, 220)
+        .sliderRange(0, 160)
+        .onChanged(EclipseConfig::backgroundDim)
         .build()
     );
 
@@ -202,7 +264,14 @@ public class EclipseVisuals extends Module {
         EclipseConfig.titleLogo(titleLogo.get());
         EclipseConfig.logoWidth(logoWidth.get());
         EclipseConfig.logoY(logoY.get());
+        EclipseConfig.logoStarSize(logoStarSize.get());
+        EclipseConfig.logoLineAlpha(logoLineAlpha.get());
+        EclipseConfig.logoTwinkle(logoTwinkle.get());
+        EclipseConfig.logoColor(logoColor.get().getPacked());
+        EclipseConfig.logoGlowColor(logoGlowColor.get().getPacked());
         EclipseConfig.screenBackgrounds(screenBackgrounds.get());
+        EclipseConfig.allScreenBackgrounds(allScreenBackgrounds.get());
+        EclipseConfig.backgroundDim(backgroundDim.get());
         EclipseConfig.performanceMode(performanceMode.get());
         EclipseConfig.crosshair(crosshair.get());
         EclipseConfig.crosshairOutline(crosshairOutline.get());

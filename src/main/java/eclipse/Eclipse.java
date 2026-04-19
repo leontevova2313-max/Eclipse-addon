@@ -8,6 +8,7 @@ import eclipse.modules.DuplicateNameGuard;
 import eclipse.modules.EclipseMove;
 import eclipse.modules.EclipseFlight;
 import eclipse.modules.EclipseNoSlow;
+import eclipse.modules.ExternalCheatTrace;
 import eclipse.modules.ExtraElytra;
 import eclipse.modules.LitematicaPrinter;
 import eclipse.modules.MiddleClickInfo;
@@ -33,6 +34,7 @@ public class Eclipse extends MeteorAddon {
         Modules.get().add(new EclipseMove());
         Modules.get().add(new EclipseNoSlow());
         Modules.get().add(new EclipseVisuals());
+        Modules.get().add(new ExternalCheatTrace());
         Modules.get().add(new ExtraElytra());
         Modules.get().add(new LitematicaPrinter());
         Modules.get().add(new MiddleClickInfo());
