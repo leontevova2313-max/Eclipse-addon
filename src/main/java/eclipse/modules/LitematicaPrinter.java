@@ -40,6 +40,7 @@ import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.ItemTags;
 import net.minecraft.state.property.Properties;
+import net.minecraft.state.property.Property;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
@@ -53,6 +54,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 
 public class LitematicaPrinter extends Module {
@@ -68,6 +70,20 @@ public class LitematicaPrinter extends Module {
     private static final Color PORTAL_LINE = new Color(255, 216, 92, 230);
     private static final Color PULSE_SIDE = new Color(255, 255, 255, 74);
     private static final Color PULSE_LINE = new Color(255, 255, 255, 255);
+    private static final Set<String> IMPORTANT_STATE_PROPERTIES = Set.of(
+        "type",
+        "half",
+        "facing",
+        "horizontal_facing",
+        "axis",
+        "horizontal_axis",
+        "shape",
+        "rotation",
+        "attachment",
+        "face",
+        "part",
+        "hinge"
+    );
     private static LitematicaPrinter activeInstance;
 
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
@@ -79,7 +95,7 @@ public class LitematicaPrinter extends Module {
     private final Setting<Integer> blocksPerTick = sgGeneral.add(new IntSetting.Builder()
         .name("blocks-per-tick")
         .description("Maximum placement interactions per tick.")
-        .defaultValue(4)
+        .defaultValue(1)
         .range(1, 9)
         .sliderRange(1, 9)
         .build()
@@ -88,7 +104,7 @@ public class LitematicaPrinter extends Module {
     private final Setting<Integer> horizontalRange = sgGeneral.add(new IntSetting.Builder()
         .name("horizontal-range")
         .description("Horizontal scan radius around the player.")
-        .defaultValue(6)
+        .defaultValue(5)
         .range(1, 8)
         .sliderRange(1, 8)
         .build()
@@ -97,9 +113,18 @@ public class LitematicaPrinter extends Module {
     private final Setting<Integer> verticalRange = sgGeneral.add(new IntSetting.Builder()
         .name("vertical-range")
         .description("Vertical scan radius around player eye level.")
-        .defaultValue(6)
+        .defaultValue(5)
         .range(1, 8)
         .sliderRange(1, 8)
+        .build()
+    );
+
+    private final Setting<Integer> scanLimit = sgGeneral.add(new IntSetting.Builder()
+        .name("scan-limit")
+        .description("Maximum schematic positions checked per tick for placement candidates.")
+        .defaultValue(1600)
+        .range(128, 6000)
+        .sliderRange(256, 3000)
         .build()
     );
 
@@ -116,16 +141,37 @@ public class LitematicaPrinter extends Module {
     private final Setting<Integer> tickDelay = sgGeneral.add(new IntSetting.Builder()
         .name("tick-delay")
         .description("Ticks to wait after a tick that placed at least one block.")
-        .defaultValue(0)
+        .defaultValue(2)
         .range(0, 10)
         .sliderRange(0, 10)
+        .build()
+    );
+
+    private final Setting<BuildOrder> buildOrder = sgGeneral.add(new EnumSetting.Builder<BuildOrder>()
+        .name("build-order")
+        .description("How placement candidates are prioritized.")
+        .defaultValue(BuildOrder.StableSupport)
         .build()
     );
 
     private final Setting<Boolean> exactState = sgPlacement.add(new BoolSetting.Builder()
         .name("exact-state")
         .description("Requires the world state to match the schematic state.")
-        .defaultValue(false)
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Boolean> importantState = sgPlacement.add(new BoolSetting.Builder()
+        .name("important-state")
+        .description("Always checks slab halves, stairs, facing, axis, rotation, and similar placement-critical properties.")
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Boolean> replaceWrongState = sgPlacement.add(new BoolSetting.Builder()
+        .name("replace-wrong-state")
+        .description("Breaks same-block wrong-state blocks so they can be placed again with the schematic half or rotation.")
+        .defaultValue(true)
         .build()
     );
 
@@ -167,6 +213,13 @@ public class LitematicaPrinter extends Module {
     private final Setting<Boolean> explicitPlaceSide = sgPlacement.add(new BoolSetting.Builder()
         .name("explicit-place-side")
         .description("Uses schematic properties to choose the clicked side.")
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Boolean> meteorAirPlace = sgPlacement.add(new BoolSetting.Builder()
+        .name("meteor-air-place")
+        .description("Uses Meteor's placement helper, including its air-place fallback when no neighbor can be clicked.")
         .defaultValue(true)
         .build()
     );
@@ -248,7 +301,7 @@ public class LitematicaPrinter extends Module {
     private final Setting<Integer> progressScanPerTick = sgRender.add(new IntSetting.Builder()
         .name("progress-scan-per-tick")
         .description("How many selected schematic positions are checked per tick for the progress bar.")
-        .defaultValue(2500)
+        .defaultValue(1200)
         .range(100, 50000)
         .sliderRange(500, 12000)
         .build()
@@ -285,9 +338,9 @@ public class LitematicaPrinter extends Module {
     private final Setting<Integer> correctionPause = sgSafety.add(new IntSetting.Builder()
         .name("correction-pause")
         .description("Ticks to pause after a server position correction.")
-        .defaultValue(20)
-        .range(0, 100)
-        .sliderRange(0, 60)
+        .defaultValue(60)
+        .range(0, 140)
+        .sliderRange(0, 100)
         .build()
     );
 
@@ -304,9 +357,34 @@ public class LitematicaPrinter extends Module {
     private final Setting<Integer> retryDelay = sgSafety.add(new IntSetting.Builder()
         .name("retry-delay")
         .description("Ticks before retrying the same position after sending an interaction.")
-        .defaultValue(4)
+        .defaultValue(12)
         .range(0, 40)
         .sliderRange(0, 20)
+        .build()
+    );
+
+    private final Setting<Integer> maxRetries = sgSafety.add(new IntSetting.Builder()
+        .name("max-retries")
+        .description("Failed verification attempts before temporarily skipping a position.")
+        .defaultValue(3)
+        .range(1, 10)
+        .sliderRange(1, 6)
+        .build()
+    );
+
+    private final Setting<Integer> skipImpossibleTicks = sgSafety.add(new IntSetting.Builder()
+        .name("skip-impossible-ticks")
+        .description("Ticks to skip a target after repeated failed placement verification.")
+        .defaultValue(100)
+        .range(20, 600)
+        .sliderRange(40, 240)
+        .build()
+    );
+
+    private final Setting<Boolean> pauseWhenMissingBlocks = sgSafety.add(new BoolSetting.Builder()
+        .name("pause-when-missing-blocks")
+        .description("Pauses briefly when the next valid target has no matching item available.")
+        .defaultValue(true)
         .build()
     );
 
@@ -318,7 +396,9 @@ public class LitematicaPrinter extends Module {
     );
 
     private final LitematicaBridge bridge = new LitematicaBridge();
-    private final Map<BlockPos, Integer> retryCooldowns = new HashMap<>();
+    private final Map<BlockPos, PendingAttempt> pendingAttempts = new HashMap<>();
+    private final Map<BlockPos, Integer> failedAttempts = new HashMap<>();
+    private final Map<BlockPos, Integer> skipCooldowns = new HashMap<>();
     private final List<Candidate> renderCandidates = new ArrayList<>();
     private final ProgressTracker progressTracker = new ProgressTracker();
     private ProgressSnapshot progressSnapshot = ProgressSnapshot.empty();
@@ -326,6 +406,7 @@ public class LitematicaPrinter extends Module {
     private int delayTicks;
     private int correctionTicks;
     private int moveCooldown;
+    private int missingItemCooldown;
     private int lastActionTicks;
     private boolean warnedMissingLitematica;
     private boolean warnedBridgeError;
@@ -344,7 +425,9 @@ public class LitematicaPrinter extends Module {
         lastActionPos = null;
         warnedMissingLitematica = false;
         warnedBridgeError = false;
-        retryCooldowns.clear();
+        pendingAttempts.clear();
+        failedAttempts.clear();
+        skipCooldowns.clear();
         renderCandidates.clear();
         progressTracker.reset();
         progressSnapshot = ProgressSnapshot.empty();
@@ -372,6 +455,7 @@ public class LitematicaPrinter extends Module {
         tickCooldowns();
         updateProgressSnapshot();
         if (lastActionTicks > 0) lastActionTicks--;
+        if (missingItemCooldown > 0) missingItemCooldown--;
         if (!canRunThisTick()) {
             renderCandidates.clear();
             return;
@@ -387,7 +471,7 @@ public class LitematicaPrinter extends Module {
 
         for (Candidate candidate : candidates) {
             if (placed >= blocksPerTick.get()) break;
-            if (retryCooldowns.containsKey(candidate.pos)) continue;
+            if (isTemporarilyBlocked(candidate.pos)) continue;
 
             BlockState worldState = mc.world.getBlockState(candidate.pos);
             if (!stillNeedsWork(worldState, candidate.state)) continue;
@@ -395,9 +479,11 @@ public class LitematicaPrinter extends Module {
             if (candidate.doubleSlab) {
                 FindItemResult result = findRequiredItem(candidate.state);
                 if (result.found() && interactAt(candidate.pos, result, slabCompletionSide(worldState), null)) {
-                    markAttempt(candidate.pos);
+                    markAttempt(candidate.pos, candidate.state);
                     markAction(candidate.pos);
                     placed++;
+                } else if (!result.found()) {
+                    handleMissingItem(candidate);
                 }
                 continue;
             }
@@ -406,24 +492,37 @@ public class LitematicaPrinter extends Module {
                 FindItemResult result = findFlintAndSteel();
                 Direction side = findIgniteSide(candidate.pos);
                 if (result.found() && side != null && interactAt(candidate.pos.offset(side.getOpposite()), result, side, null)) {
-                    markAttempt(candidate.pos);
+                    markAttempt(candidate.pos, candidate.state);
                     markAction(candidate.pos);
                     placed++;
+                } else if (!result.found()) {
+                    handleMissingItem(candidate);
+                } else {
+                    markImpossible(candidate.pos);
                 }
                 continue;
             }
 
             if (candidate.breakOnly) {
                 if (!brokeBlock && BlockUtils.breakBlock(candidate.pos, swing.get())) {
-                    markAttempt(candidate.pos);
+                    markAttempt(candidate.pos, candidate.state);
                     markAction(candidate.pos);
+                    placed++;
                     brokeBlock = true;
+                } else if (brokeBlock) {
+                    continue;
+                } else {
+                    markImpossible(candidate.pos);
                 }
                 continue;
             }
 
             FindItemResult result = findRequiredItem(candidate.state);
-            if (!result.found()) continue;
+            if (!result.found()) {
+                handleMissingItem(candidate);
+                if (pauseWhenMissingBlocks.get()) break;
+                continue;
+            }
 
             RotationSpec stateRotation = getStateRotation(candidate.state);
             if (stateRotation != null && usedStateRotation != null && !usedStateRotation.equals(stateRotation)) continue;
@@ -431,9 +530,11 @@ public class LitematicaPrinter extends Module {
             Direction side = explicitPlaceSide.get() ? placementSide(candidate.state) : null;
             if (placeAt(candidate.pos, candidate.state, result, side, stateRotation)) {
                 if (stateRotation != null) usedStateRotation = stateRotation;
-                markAttempt(candidate.pos);
+                markAttempt(candidate.pos, candidate.state);
                 markAction(candidate.pos);
                 placed++;
+            } else {
+                markImpossible(candidate.pos);
             }
         }
 
@@ -509,6 +610,8 @@ public class LitematicaPrinter extends Module {
             return false;
         }
 
+        if (missingItemCooldown > 0 && pauseWhenMissingBlocks.get()) return false;
+
         return minTps.get() <= 0.0 || TickRate.INSTANCE.getTickRate() >= minTps.get();
     }
 
@@ -521,15 +624,24 @@ public class LitematicaPrinter extends Module {
         int hRange = horizontalRange.get();
         int vRange = verticalRange.get();
 
+        SelectedPlacement selected = bridge.getSelectedPlacement();
+        if (selected != null && !selected.boxes().isEmpty()) {
+            collectSelectedCandidates(candidates, selected, origin, centerY, hRange, vRange, eye, maxDistanceSq);
+            candidates.sort(candidateComparator());
+            return candidates;
+        }
+
         BlockPos.Mutable mutable = new BlockPos.Mutable();
+        int scanned = 0;
         for (int x = origin.getX() - hRange; x <= origin.getX() + hRange; x++) {
             for (int y = centerY - vRange; y <= centerY + vRange; y++) {
                 for (int z = origin.getZ() - hRange; z <= origin.getZ() + hRange; z++) {
+                    if (scanned++ >= scanLimit.get()) break;
                     mutable.set(x, y, z);
                     if (eye.squaredDistanceTo(mutable.toCenterPos()) > maxDistanceSq) continue;
 
                     BlockPos pos = new BlockPos(mutable);
-                    if (retryCooldowns.containsKey(pos)) continue;
+                    if (isTemporarilyBlocked(pos) || !isLoadedAndBuildable(pos)) continue;
 
                     BlockState schematicState = bridge.getSchematicState(pos);
                     if (schematicState == null) {
@@ -539,11 +651,55 @@ public class LitematicaPrinter extends Module {
 
                     addCandidate(candidates, pos, schematicState, eye);
                 }
+                if (scanned >= scanLimit.get()) break;
             }
+            if (scanned >= scanLimit.get()) break;
         }
 
-        candidates.sort(Comparator.comparingDouble(candidate -> candidate.distanceSq));
+        candidates.sort(candidateComparator());
         return candidates;
+    }
+
+    private void collectSelectedCandidates(List<Candidate> candidates, SelectedPlacement selected, BlockPos origin, int centerY, int hRange, int vRange, Vec3d eye, double maxDistanceSq) {
+        int minX = origin.getX() - hRange;
+        int maxX = origin.getX() + hRange;
+        int minY = centerY - vRange;
+        int maxY = centerY + vRange;
+        int minZ = origin.getZ() - hRange;
+        int maxZ = origin.getZ() + hRange;
+
+        BlockPos.Mutable mutable = new BlockPos.Mutable();
+        int scanned = 0;
+        for (BlockBox box : selected.boxes()) {
+            int fromX = Math.max(minX, box.minX());
+            int toX = Math.min(maxX, box.maxX());
+            int fromY = Math.max(minY, box.minY());
+            int toY = Math.min(maxY, box.maxY());
+            int fromZ = Math.max(minZ, box.minZ());
+            int toZ = Math.min(maxZ, box.maxZ());
+            if (fromX > toX || fromY > toY || fromZ > toZ) continue;
+
+            for (int y = fromY; y <= toY; y++) {
+                for (int x = fromX; x <= toX; x++) {
+                    for (int z = fromZ; z <= toZ; z++) {
+                        if (scanned++ >= scanLimit.get()) return;
+                        mutable.set(x, y, z);
+                        if (eye.squaredDistanceTo(mutable.toCenterPos()) > maxDistanceSq) continue;
+
+                        BlockPos pos = new BlockPos(mutable);
+                        if (isTemporarilyBlocked(pos) || !isLoadedAndBuildable(pos)) continue;
+
+                        BlockState schematicState = bridge.getSchematicState(pos);
+                        if (schematicState == null) {
+                            warnBridgeError();
+                            continue;
+                        }
+
+                        addCandidate(candidates, pos, schematicState, eye);
+                    }
+                }
+            }
+        }
     }
 
     private void addCandidate(List<Candidate> candidates, BlockPos pos, BlockState schematicState, Vec3d eye) {
@@ -552,7 +708,7 @@ public class LitematicaPrinter extends Module {
         if (noGrassToDirt.get() && worldState.isOf(Blocks.GRASS_BLOCK) && schematicState.isOf(Blocks.DIRT)) return;
 
         if (isDoubleSlabCompletion(worldState, schematicState)) {
-            candidates.add(new Candidate(pos, schematicState, eye.squaredDistanceTo(pos.toCenterPos()), false, true, false));
+            candidates.add(new Candidate(pos, schematicState, eye.squaredDistanceTo(pos.toCenterPos()), supportScore(pos, schematicState), false, true, false));
             return;
         }
 
@@ -564,7 +720,7 @@ public class LitematicaPrinter extends Module {
 
         if (schematicState.isOf(Blocks.NETHER_PORTAL) && portalIgnite.get() != PortalIgniteMode.Off) {
             if (AbstractFireBlock.canPlaceAt(mc.world, pos, Direction.UP)) {
-                candidates.add(new Candidate(pos, schematicState, eye.squaredDistanceTo(pos.toCenterPos()), false, false, true));
+                candidates.add(new Candidate(pos, schematicState, eye.squaredDistanceTo(pos.toCenterPos()), supportScore(pos, schematicState), false, false, true));
             }
             return;
         }
@@ -574,7 +730,7 @@ public class LitematicaPrinter extends Module {
 
         if (!worldState.isReplaceable()) {
             if (shouldBreak(pos, worldState, schematicState)) {
-                candidates.add(new Candidate(pos, schematicState, eye.squaredDistanceTo(pos.toCenterPos()), true, false, false));
+                candidates.add(new Candidate(pos, schematicState, eye.squaredDistanceTo(pos.toCenterPos()), supportScore(pos, schematicState), true, false, false));
             }
             return;
         }
@@ -585,18 +741,50 @@ public class LitematicaPrinter extends Module {
             && FallingBlock.canFallThrough(mc.world.getBlockState(pos.down()))) return;
         if (!BlockUtils.canPlaceBlock(pos, checkEntities.get(), schematicState.getBlock())) return;
 
-        candidates.add(new Candidate(pos, schematicState, eye.squaredDistanceTo(pos.toCenterPos()), false, false, false));
+        if (getPlacementHit(pos, schematicState, explicitPlaceSide.get() ? placementSide(schematicState) : null) == null && !meteorAirPlace.get()) return;
+
+        candidates.add(new Candidate(pos, schematicState, eye.squaredDistanceTo(pos.toCenterPos()), supportScore(pos, schematicState), false, false, false));
+    }
+
+    private Comparator<Candidate> candidateComparator() {
+        return switch (buildOrder.get()) {
+            case Nearest -> Comparator.comparingDouble(Candidate::distanceSq);
+            case Layers -> Comparator
+                .comparingInt((Candidate candidate) -> candidate.pos.getY())
+                .thenComparing((Candidate candidate) -> candidate.breakOnly ? 0 : 1)
+                .thenComparingDouble(Candidate::distanceSq);
+            case StableSupport -> Comparator
+                .comparingInt((Candidate candidate) -> candidate.breakOnly ? 0 : 1)
+                .thenComparing(Comparator.comparingInt(Candidate::supportScore).reversed())
+                .thenComparingInt(candidate -> candidate.pos.getY())
+                .thenComparingDouble(Candidate::distanceSq);
+        };
+    }
+
+    private int supportScore(BlockPos pos, BlockState state) {
+        int score = 0;
+        if (!mc.world.getBlockState(pos.down()).isReplaceable()) score += 4;
+        if (getPlacementHit(pos, state, explicitPlaceSide.get() ? placementSide(state) : null) != null) score += 3;
+
+        for (Direction direction : Direction.values()) {
+            BlockState neighbor = mc.world.getBlockState(pos.offset(direction));
+            if (!neighbor.isAir() && neighbor.getFluidState().isEmpty()) score++;
+        }
+
+        if (state.getBlock() instanceof FallingBlock && !FallingBlock.canFallThrough(mc.world.getBlockState(pos.down()))) score += 4;
+        return score;
     }
 
     private boolean stillNeedsWork(BlockState worldState, BlockState schematicState) {
-        if (exactState.get()) return !worldState.equals(schematicState);
-        return worldState.getBlock() != schematicState.getBlock();
+        return !stateMatches(worldState, schematicState);
     }
 
     private boolean shouldBreak(BlockPos pos, BlockState worldState, BlockState schematicState) {
-        if (breakMode.get() == BreakMode.Off || worldState.isAir()) return false;
+        if (worldState.isAir()) return false;
         if (!BlockUtils.canBreak(pos, worldState)) return false;
-        return breakMode.get() == BreakMode.All || !schematicState.isAir();
+        if (needsWrongStateReplacement(worldState, schematicState)) return true;
+        if (breakMode.get() == BreakMode.Off) return false;
+        return breakMode.get() == BreakMode.All || !schematicState.isAir() || needsWrongStateReplacement(worldState, schematicState);
     }
 
     private void updateRenderCandidates(List<Candidate> candidates) {
@@ -644,8 +832,34 @@ public class LitematicaPrinter extends Module {
     private boolean isCompleteForProgress(BlockPos pos, BlockState schematicState) {
         BlockState worldState = mc.world.getBlockState(pos);
         if (noGrassToDirt.get() && worldState.isOf(Blocks.GRASS_BLOCK) && schematicState.isOf(Blocks.DIRT)) return true;
+        return stateMatches(worldState, schematicState);
+    }
+
+    private boolean stateMatches(BlockState worldState, BlockState schematicState) {
         if (exactState.get()) return worldState.equals(schematicState);
-        return worldState.getBlock() == schematicState.getBlock();
+        if (worldState.getBlock() != schematicState.getBlock()) return false;
+        return !importantState.get() || importantPropertiesMatch(worldState, schematicState);
+    }
+
+    private boolean needsWrongStateReplacement(BlockState worldState, BlockState schematicState) {
+        return replaceWrongState.get()
+            && worldState.getBlock() == schematicState.getBlock()
+            && !worldState.equals(schematicState)
+            && !importantPropertiesMatch(worldState, schematicState);
+    }
+
+    private boolean importantPropertiesMatch(BlockState worldState, BlockState schematicState) {
+        for (Property<?> property : schematicState.getProperties()) {
+            if (!IMPORTANT_STATE_PROPERTIES.contains(property.getName())) continue;
+            if (!worldState.contains(property)) return false;
+            if (!samePropertyValue(worldState, schematicState, property)) return false;
+        }
+
+        return true;
+    }
+
+    private <T extends Comparable<T>> boolean samePropertyValue(BlockState worldState, BlockState schematicState, Property<T> property) {
+        return worldState.get(property).equals(schematicState.get(property));
     }
 
     private FindItemResult findRequiredItem(BlockState state) {
@@ -686,8 +900,13 @@ public class LitematicaPrinter extends Module {
     }
 
     private boolean placeAt(BlockPos pos, BlockState state, FindItemResult result, Direction preferredSide, RotationSpec stateRotation) {
-        BlockHitResult hit = getPlacementHit(pos, preferredSide);
+        BlockHitResult hit = getPlacementHit(pos, state, preferredSide);
+        if (hit == null && meteorAirPlace.get()) {
+            return BlockUtils.place(pos, result, rotationMode.get() != RotationMode.None, 80, swing.get(), checkEntities.get(), swapBack.get());
+        }
+
         if (hit == null) return false;
+        if (!withinInteractionRange(hit.getPos())) return false;
 
         Runnable action = () -> interactWithItem(result, hit);
         RotationSpec rotation = rotationFor(hit, stateRotation);
@@ -700,6 +919,7 @@ public class LitematicaPrinter extends Module {
         if (!canClickNeighbor(clickedPos)) return false;
 
         Vec3d hitPos = Vec3d.ofCenter(clickedPos).add(side.getOffsetX() * 0.5, side.getOffsetY() * 0.5, side.getOffsetZ() * 0.5);
+        if (!withinInteractionRange(hitPos)) return false;
         BlockHitResult hit = new BlockHitResult(hitPos, side, clickedPos, false);
         Runnable action = () -> interactWithItem(result, hit);
         RotationSpec rotation = rotationFor(hit, stateRotation);
@@ -732,11 +952,15 @@ public class LitematicaPrinter extends Module {
         if (swapped && swapBack.get()) InvUtils.swapBack();
     }
 
-    private BlockHitResult getPlacementHit(BlockPos pos, Direction preferredSide) {
+    private boolean withinInteractionRange(Vec3d hitPos) {
+        return mc.player.getEyePos().squaredDistanceTo(hitPos) <= interactionRange.get() * interactionRange.get();
+    }
+
+    private BlockHitResult getPlacementHit(BlockPos pos, BlockState state, Direction preferredSide) {
         if (preferredSide != null) {
             BlockPos neighbor = pos.offset(preferredSide.getOpposite());
             if (canClickNeighbor(neighbor)) {
-                Vec3d hitPos = Vec3d.ofCenter(neighbor).add(preferredSide.getOffsetX() * 0.5, preferredSide.getOffsetY() * 0.5, preferredSide.getOffsetZ() * 0.5);
+                Vec3d hitPos = adjustHitPos(pos, Vec3d.ofCenter(neighbor).add(preferredSide.getOffsetX() * 0.5, preferredSide.getOffsetY() * 0.5, preferredSide.getOffsetZ() * 0.5), state);
                 return new BlockHitResult(hitPos, preferredSide, neighbor, false);
             }
         }
@@ -746,13 +970,30 @@ public class LitematicaPrinter extends Module {
 
         BlockPos neighbor = pos.offset(fallback);
         Direction side = fallback.getOpposite();
-        Vec3d hitPos = Vec3d.ofCenter(neighbor).add(side.getOffsetX() * 0.5, side.getOffsetY() * 0.5, side.getOffsetZ() * 0.5);
+        Vec3d hitPos = adjustHitPos(pos, Vec3d.ofCenter(neighbor).add(side.getOffsetX() * 0.5, side.getOffsetY() * 0.5, side.getOffsetZ() * 0.5), state);
         return new BlockHitResult(hitPos, side, neighbor, false);
+    }
+
+    private Vec3d adjustHitPos(BlockPos target, Vec3d hitPos, BlockState state) {
+        double y = hitPos.y;
+        if (state.contains(Properties.SLAB_TYPE)) {
+            SlabType type = state.get(Properties.SLAB_TYPE);
+            if (type == SlabType.TOP) y = target.getY() + 0.78;
+            else if (type == SlabType.BOTTOM) y = target.getY() + 0.22;
+        } else if (state.contains(Properties.BLOCK_HALF)) {
+            y = state.get(Properties.BLOCK_HALF) == BlockHalf.TOP ? target.getY() + 0.78 : target.getY() + 0.22;
+        }
+
+        return new Vec3d(hitPos.x, y, hitPos.z);
     }
 
     private boolean canClickNeighbor(BlockPos pos) {
         BlockState state = mc.world.getBlockState(pos);
         return !state.isAir() && state.getFluidState().isEmpty() && !BlockUtils.isClickable(state.getBlock());
+    }
+
+    private boolean isLoadedAndBuildable(BlockPos pos) {
+        return mc.world.isInBuildLimit(pos) && mc.world.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4);
     }
 
     private RotationSpec rotationFor(BlockHitResult hit, RotationSpec stateRotation) {
@@ -835,12 +1076,61 @@ public class LitematicaPrinter extends Module {
     }
 
     private void tickCooldowns() {
-        retryCooldowns.entrySet().removeIf(entry -> entry.getValue() <= 1);
-        retryCooldowns.replaceAll((pos, ticks) -> ticks - 1);
+        skipCooldowns.entrySet().removeIf(entry -> entry.getValue() <= 1);
+        skipCooldowns.replaceAll((pos, ticks) -> ticks - 1);
+
+        List<BlockPos> done = new ArrayList<>();
+        for (Map.Entry<BlockPos, PendingAttempt> entry : pendingAttempts.entrySet()) {
+            PendingAttempt attempt = entry.getValue().tick();
+            if (attempt.remainingTicks() > 0) {
+                entry.setValue(attempt);
+                continue;
+            }
+
+            BlockPos pos = entry.getKey();
+            BlockState worldState = mc.world.getBlockState(pos);
+            if (!stillNeedsWork(worldState, attempt.state())) {
+                failedAttempts.remove(pos);
+                done.add(pos);
+                continue;
+            }
+
+            int failures = failedAttempts.merge(pos, 1, Integer::sum);
+            if (failures >= maxRetries.get()) {
+                skipCooldowns.put(new BlockPos(pos), skipImpossibleTicks.get());
+                failedAttempts.remove(pos);
+                if (debug.get()) info("Skipping " + pos.toShortString() + " after " + failures + " failed verification checks.");
+            }
+            done.add(pos);
+        }
+
+        for (BlockPos pos : done) pendingAttempts.remove(pos);
     }
 
-    private void markAttempt(BlockPos pos) {
-        if (retryDelay.get() > 0) retryCooldowns.put(new BlockPos(pos), retryDelay.get());
+    private boolean isTemporarilyBlocked(BlockPos pos) {
+        return pendingAttempts.containsKey(pos) || skipCooldowns.containsKey(pos);
+    }
+
+    private void markAttempt(BlockPos pos, BlockState state) {
+        pendingAttempts.put(new BlockPos(pos), new PendingAttempt(state, Math.max(1, retryDelay.get())));
+    }
+
+    private void markImpossible(BlockPos pos) {
+        int failures = failedAttempts.merge(new BlockPos(pos), 1, Integer::sum);
+        if (failures >= maxRetries.get()) {
+            skipCooldowns.put(new BlockPos(pos), skipImpossibleTicks.get());
+            failedAttempts.remove(pos);
+        } else if (retryDelay.get() > 0) {
+            skipCooldowns.put(new BlockPos(pos), Math.max(1, retryDelay.get() / 2));
+        }
+    }
+
+    private void handleMissingItem(Candidate candidate) {
+        markImpossible(candidate.pos);
+        if (pauseWhenMissingBlocks.get()) {
+            missingItemCooldown = Math.max(missingItemCooldown, Math.max(4, retryDelay.get()));
+            if (debug.get()) info("Missing item for " + candidate.state.getBlock().getName().getString() + " at " + candidate.pos.toShortString() + ".");
+        }
     }
 
     private void warnBridgeError() {
@@ -1010,6 +1300,12 @@ public class LitematicaPrinter extends Module {
         None
     }
 
+    private enum BuildOrder {
+        Nearest,
+        StableSupport,
+        Layers
+    }
+
     private enum BreakMode {
         Off,
         NonAir,
@@ -1022,10 +1318,16 @@ public class LitematicaPrinter extends Module {
         UseAny
     }
 
-    private record Candidate(BlockPos pos, BlockState state, double distanceSq, boolean breakOnly, boolean doubleSlab, boolean portalIgnite) {
+    private record Candidate(BlockPos pos, BlockState state, double distanceSq, int supportScore, boolean breakOnly, boolean doubleSlab, boolean portalIgnite) {
     }
 
     private record RotationSpec(double yaw, double pitch) {
+    }
+
+    private record PendingAttempt(BlockState state, int remainingTicks) {
+        private PendingAttempt tick() {
+            return new PendingAttempt(state, remainingTicks - 1);
+        }
     }
 
     private static final class LitematicaBridge {

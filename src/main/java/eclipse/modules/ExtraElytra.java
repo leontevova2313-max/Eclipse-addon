@@ -1,6 +1,8 @@
 package eclipse.modules;
 
 import eclipse.Eclipse;
+import meteordevelopment.meteorclient.events.game.GameJoinedEvent;
+import meteordevelopment.meteorclient.events.game.GameLeftEvent;
 import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.settings.BoolSetting;
@@ -28,6 +30,20 @@ public class ExtraElytra extends Module {
         Legit,
         GroundGlide,
         FakeFly
+    }
+
+    public enum FlightState {
+        Idle,
+        WaitingForTakeoff,
+        TakeoffStart,
+        ElytraEngaged,
+        SustainedFlight,
+        Recovery
+    }
+
+    public enum CorrectionRecovery {
+        Pause,
+        RetryTakeoff
     }
 
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
@@ -161,12 +177,38 @@ public class ExtraElytra extends Module {
         .build()
     );
 
+    private final Setting<Integer> rocketSlot = sgPackets.add(new IntSetting.Builder()
+        .name("rocket-slot")
+        .description("Hotbar slot used for rockets moved from inventory. 1-9.")
+        .defaultValue(9)
+        .range(1, 9)
+        .sliderRange(1, 9)
+        .build()
+    );
+
+    private final Setting<Boolean> moveRocketsToSlot = sgPackets.add(new BoolSetting.Builder()
+        .name("move-rockets-to-slot")
+        .description("Moves rockets from inventory into Rocket Slot when the hotbar has none.")
+        .defaultValue(true)
+        .build()
+    );
+
     private final Setting<Double> fireworkMinSpeed = sgMotion.add(new DoubleSetting.Builder()
         .name("firework-min-speed")
         .description("Uses a firework below this horizontal speed while moving.")
         .defaultValue(0.62)
         .range(0.05, 2.5)
         .sliderRange(0.1, 1.5)
+        .decimalPlaces(2)
+        .build()
+    );
+
+    private final Setting<Double> controlResponse = sgMotion.add(new DoubleSetting.Builder()
+        .name("control-response")
+        .description("How quickly controlled flight velocity moves toward the target velocity.")
+        .defaultValue(0.55)
+        .range(0.05, 1.0)
+        .sliderRange(0.1, 1.0)
         .decimalPlaces(2)
         .build()
     );
@@ -185,6 +227,13 @@ public class ExtraElytra extends Module {
         .build()
     );
 
+    private final Setting<CorrectionRecovery> correctionRecovery = sgSafety.add(new EnumSetting.Builder<CorrectionRecovery>()
+        .name("correction-recovery")
+        .description("How ElytraFly recovers after server position corrections.")
+        .defaultValue(CorrectionRecovery.RetryTakeoff)
+        .build()
+    );
+
     private final Setting<Integer> correctionPause = sgSafety.add(new IntSetting.Builder()
         .name("correction-pause")
         .description("Ticks to stop applying elytra assists after a server position correction.")
@@ -198,6 +247,9 @@ public class ExtraElytra extends Module {
     private int correctionTicks;
     private int fireworkTicks;
     private int startTicks;
+    private int airborneTicks;
+    private int glidingTicks;
+    private FlightState state = FlightState.Idle;
 
     public ExtraElytra() {
         super(Eclipse.CATEGORY, "eclipse-elytra", "Elytra fly, ground glide, and chestplate fake-fly tuned for diagnostics.");
@@ -205,16 +257,30 @@ public class ExtraElytra extends Module {
 
     @Override
     public void onActivate() {
-        ticks = 0;
-        correctionTicks = 0;
-        fireworkTicks = 0;
-        startTicks = 0;
+        resetState(FlightState.Idle);
+    }
+
+    @Override
+    public void onDeactivate() {
+        resetState(FlightState.Idle);
+    }
+
+    @EventHandler
+    private void onGameJoined(GameJoinedEvent event) {
+        resetState(FlightState.Idle);
+    }
+
+    @EventHandler
+    private void onGameLeft(GameLeftEvent event) {
+        resetState(FlightState.Idle);
     }
 
     @EventHandler
     private void onPacketReceive(PacketEvent.Receive event) {
         if (event.packet instanceof PlayerPositionLookS2CPacket) {
             correctionTicks = correctionPause.get();
+            state = FlightState.Recovery;
+            glidingTicks = 0;
         }
     }
 
@@ -227,17 +293,33 @@ public class ExtraElytra extends Module {
         if (startTicks > 0) startTicks--;
 
         boolean hasElytra = mc.player.getEquippedStack(EquipmentSlot.CHEST).isOf(Items.ELYTRA);
-        if (serverSafe.get() && correctionTicks > 0) {
-            correctionTicks--;
+        if (!mc.player.isAlive()) {
+            resetState(FlightState.Idle);
             return;
         }
-        if (serverSafe.get() && !hasElytra) return;
+
+        updateAirState();
+
+        if (correctionTicks > 0) {
+            correctionTicks--;
+            if (correctionTicks == 0 && correctionRecovery.get() == CorrectionRecovery.RetryTakeoff) {
+                state = mc.player.isGliding() ? FlightState.ElytraEngaged : FlightState.WaitingForTakeoff;
+            }
+            return;
+        }
+
+        if (serverSafe.get() && !hasElytra) {
+            state = FlightState.Idle;
+            return;
+        }
         if (mode.get() != Mode.FakeFly && requireElytra.get() && !hasElytra) return;
 
-        if (resetFallDistance.get() && (!serverSafe.get() || mc.player.isGliding())) mc.player.fallDistance = 0.0F;
+        updateFlightState(hasElytra);
+        if (resetFallDistance.get() && (!serverSafe.get() || mc.player.isGliding() || mode.get() == Mode.FakeFly)) mc.player.fallDistance = 0.0F;
         if (shouldRefreshFlying(hasElytra)) sendStartFlyingBurst();
+        handleTakeoff(hasElytra);
 
-        switch (effectiveMode()) {
+        switch (mode.get()) {
             case Grim -> applyGrimElytra(hasElytra);
             case Legit -> applyLegitAssist();
             case GroundGlide -> applyGroundGlide();
@@ -246,45 +328,32 @@ public class ExtraElytra extends Module {
     }
 
     private void applyLegitAssist() {
-        if (serverSafe.get()) {
-            applyGrimElytra(true);
-            return;
-        }
-
         if (!mc.player.isGliding()) return;
-        Vec3d velocity = elytraVelocity(false);
-        mc.player.setVelocity(velocity);
+        applyControlledFlight(false);
     }
 
     private void applyGroundGlide() {
-        if (serverSafe.get()) {
-            applyGrimElytra(true);
-            return;
-        }
-
         if (mc.player.isOnGround() && mc.options.jumpKey.isPressed()) {
             Vec3d velocity = mc.player.getVelocity();
             mc.player.setVelocity(velocity.x, groundLift.get(), velocity.z);
             sendStartFlyingBurst();
+            state = FlightState.TakeoffStart;
             return;
         }
 
-        if (mc.player.isGliding()) mc.player.setVelocity(elytraVelocity(false));
+        if (mc.player.isGliding()) applyControlledFlight(false);
     }
 
     private void applyFakeFly() {
-        if (serverSafe.get()) {
-            applyGrimElytra(true);
-            return;
-        }
-
         if (mc.player.isOnGround() && mc.options.jumpKey.isPressed()) {
             Vec3d velocity = mc.player.getVelocity();
             mc.player.setVelocity(velocity.x, groundLift.get(), velocity.z);
             sendStartFlyingBurst();
+            state = FlightState.TakeoffStart;
             return;
         }
 
+        if (serverSafe.get() && !mc.player.isGliding()) return;
         Vec3d velocity = elytraVelocity(true);
         mc.player.setVelocity(velocity);
 
@@ -321,21 +390,18 @@ public class ExtraElytra extends Module {
         return applyServerSafe(new Vec3d(horizontal.x, y, horizontal.z));
     }
 
-    private Mode effectiveMode() {
-        if (serverSafe.get()) return Mode.Grim;
-        return mode.get();
-    }
-
     private void applyGrimElytra(boolean hasElytra) {
         if (!hasElytra) return;
 
         if (autoStart.get() && shouldStartGliding()) {
             sendStartFlyingBurst();
             startTicks = 10;
+            state = FlightState.TakeoffStart;
         }
 
         if (!mc.player.isGliding()) return;
         if (resetFallDistance.get()) mc.player.fallDistance = 0.0F;
+        applyControlledFlight(false);
         if (autoFirework.get() && shouldUseFirework()) {
             useFirework();
             fireworkTicks = fireworkCooldown.get();
@@ -355,22 +421,111 @@ public class ExtraElytra extends Module {
         return PlayerUtils.isMoving() && horizontalSpeedNow() < fireworkMinSpeed.get();
     }
 
-    private void useFirework() {
-        if (mc.interactionManager == null) return;
+    private void handleTakeoff(boolean hasElytra) {
+        if (!hasElytra) return;
+
+        if (mc.options.jumpKey.isPressed() && mc.player.isOnGround() && PlayerUtils.isMoving()) {
+            mc.player.jump();
+            startTicks = 2;
+            state = FlightState.TakeoffStart;
+            return;
+        }
+
+        if (autoStart.get() && startTicks <= 0 && !mc.player.isGliding() && !mc.player.isOnGround() && mc.player.getVelocity().y < -0.02) {
+            sendStartFlyingBurst();
+            startTicks = 8;
+            state = FlightState.TakeoffStart;
+        }
+
+        if (mc.options.jumpKey.isPressed() && mc.player.isGliding() && fireworkTicks <= 0) {
+            if (useFirework()) fireworkTicks = fireworkCooldown.get();
+        }
+    }
+
+    private boolean useFirework() {
+        if (mc.interactionManager == null) return false;
 
         FindItemResult firework = InvUtils.findInHotbar(Items.FIREWORK_ROCKET);
-        if (!firework.found()) return;
+        if (!firework.found() && moveRocketsToSlot.get()) {
+            moveRocketToHotbar();
+            firework = InvUtils.findInHotbar(Items.FIREWORK_ROCKET);
+        }
+
+        if (!firework.found()) return false;
 
         Hand hand = firework.getHand();
         boolean swapped = false;
         if (hand == null) {
             swapped = InvUtils.swap(firework.slot(), rocketSwapBack.get());
-            if (!swapped) return;
+            if (!swapped) return false;
             hand = Hand.MAIN_HAND;
         }
 
         mc.interactionManager.interactItem(mc.player, hand);
         if (swapped && rocketSwapBack.get()) InvUtils.swapBack();
+        return true;
+    }
+
+    private void updateAirState() {
+        if (mc.player.isOnGround()) {
+            airborneTicks = 0;
+            glidingTicks = 0;
+            if (state != FlightState.TakeoffStart) state = FlightState.Idle;
+            return;
+        }
+
+        airborneTicks++;
+        if (mc.player.isGliding()) glidingTicks++;
+        else glidingTicks = 0;
+    }
+
+    private void updateFlightState(boolean hasElytra) {
+        if (mode != null && mode.get() == Mode.FakeFly && !serverSafe.get()) {
+            if (mc.player.isOnGround()) {
+                if (mc.options.jumpKey.isPressed()) state = FlightState.TakeoffStart;
+                else state = FlightState.Idle;
+            } else if (airborneTicks > 1) {
+                state = FlightState.SustainedFlight;
+            }
+            return;
+        }
+
+        if (!hasElytra) {
+            state = FlightState.Idle;
+            return;
+        }
+
+        if (mc.player.isGliding()) {
+            state = glidingTicks < 4 ? FlightState.ElytraEngaged : FlightState.SustainedFlight;
+            return;
+        }
+
+        if (mc.player.isOnGround()) {
+            state = mc.options.jumpKey.isPressed() ? FlightState.WaitingForTakeoff : FlightState.Idle;
+        } else if (autoStart.get() && airborneTicks >= 2) {
+            state = FlightState.WaitingForTakeoff;
+        }
+    }
+
+    private void applyControlledFlight(boolean fake) {
+        Vec3d target = elytraVelocity(fake);
+        Vec3d current = mc.player.getVelocity();
+        double response = controlResponse.get();
+        Vec3d velocity = new Vec3d(
+            current.x + (target.x - current.x) * response,
+            current.y + (target.y - current.y) * response,
+            current.z + (target.z - current.z) * response
+        );
+        mc.player.setVelocity(applyServerSafe(velocity));
+        if (state == FlightState.ElytraEngaged && glidingTicks >= 4) state = FlightState.SustainedFlight;
+    }
+
+    private void moveRocketToHotbar() {
+        FindItemResult rocket = InvUtils.find(Items.FIREWORK_ROCKET);
+        if (!rocket.found() || rocket.isHotbar() || rocket.isOffhand()) return;
+
+        int slot = rocketSlot.get() - 1;
+        InvUtils.move().from(rocket.slot()).toHotbar(slot);
     }
 
     private boolean shouldRefreshFlying(boolean hasElytra) {
@@ -411,5 +566,15 @@ public class ExtraElytra extends Module {
         for (int i = 0; i < repeats; i++) {
             mc.getNetworkHandler().sendPacket(new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.START_FALL_FLYING));
         }
+    }
+
+    private void resetState(FlightState nextState) {
+        ticks = 0;
+        correctionTicks = 0;
+        fireworkTicks = 0;
+        startTicks = 0;
+        airborneTicks = 0;
+        glidingTicks = 0;
+        state = nextState;
     }
 }

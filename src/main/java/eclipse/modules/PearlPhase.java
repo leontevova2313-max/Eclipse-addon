@@ -5,30 +5,25 @@ import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.DoubleSetting;
-import meteordevelopment.meteorclient.settings.EnumSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.player.FindItemResult;
 import meteordevelopment.meteorclient.utils.player.InvUtils;
+import meteordevelopment.meteorclient.utils.player.Rotations;
 import meteordevelopment.orbit.EventHandler;
 import net.minecraft.item.Items;
 import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
-import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
+import net.minecraft.network.packet.s2c.play.ExplosionS2CPacket;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
 public class PearlPhase extends Module {
-    public enum SequenceMode {
-        AfterThrow,
-        AfterTeleport,
-        Both
-    }
-
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
     private final SettingGroup sgPackets = settings.createGroup("Packets");
     private final SettingGroup sgSafety = settings.createGroup("Safety");
@@ -70,61 +65,49 @@ public class PearlPhase extends Module {
         .build()
     );
 
+    private final Setting<Double> throwPitch = sgGeneral.add(new DoubleSetting.Builder()
+        .name("throw-pitch")
+        .description("Pitch used before throwing the pearl.")
+        .defaultValue(80.0)
+        .range(-90.0, 90.0)
+        .sliderRange(45.0, 90.0)
+        .decimalPlaces(1)
+        .build()
+    );
+
+    private final Setting<Double> packetPitch = sgPackets.add(new DoubleSetting.Builder()
+        .name("packet-pitch")
+        .description("Pitch used in full phase movement packets.")
+        .defaultValue(80.0)
+        .range(-90.0, 90.0)
+        .sliderRange(45.0, 90.0)
+        .decimalPlaces(1)
+        .build()
+    );
+
+    private final Setting<Double> yawOffset = sgPackets.add(new DoubleSetting.Builder()
+        .name("yaw-offset")
+        .description("Yaw offset added to wall/facing direction in phase packets.")
+        .defaultValue(0.0)
+        .range(-180.0, 180.0)
+        .sliderRange(-45.0, 45.0)
+        .decimalPlaces(1)
+        .build()
+    );
+
     private final Setting<Integer> packets = sgPackets.add(new IntSetting.Builder()
         .name("packets")
-        .description("Movement packets sent in each phase burst.")
-        .defaultValue(14)
-        .range(1, 80)
-        .sliderRange(1, 36)
-        .build()
-    );
-
-    private final Setting<Integer> phaseTicks = sgPackets.add(new IntSetting.Builder()
-        .name("phase-ticks")
-        .description("Ticks to keep pushing into the wall after the trigger.")
-        .defaultValue(16)
-        .range(1, 80)
-        .sliderRange(4, 40)
-        .build()
-    );
-
-    private final Setting<Integer> afterThrowDelay = sgPackets.add(new IntSetting.Builder()
-        .name("after-throw-delay")
-        .description("Ticks to wait before the after-throw phase burst starts.")
-        .defaultValue(2)
-        .range(0, 30)
-        .sliderRange(0, 12)
-        .build()
-    );
-
-    private final Setting<SequenceMode> sequenceMode = sgPackets.add(new EnumSetting.Builder<SequenceMode>()
-        .name("sequence-mode")
-        .description("When to run the phase burst.")
-        .defaultValue(SequenceMode.Both)
-        .build()
-    );
-
-    private final Setting<Boolean> centerInWallBlock = sgPackets.add(new BoolSetting.Builder()
-        .name("center-in-wall-block")
-        .description("Targets the center line of the wall block instead of only nudging forward.")
-        .defaultValue(true)
-        .build()
-    );
-
-    private final Setting<Double> clipDistance = sgPackets.add(new DoubleSetting.Builder()
-        .name("clip-distance")
-        .description("Forward phase distance when block-center targeting is off, or extra depth after centering.")
-        .defaultValue(0.18)
-        .range(0.0, 1.5)
-        .sliderRange(0.0, 0.8)
-        .decimalPlaces(3)
+        .description("Amount of movement packets sent after the pearl throw.")
+        .defaultValue(8)
+        .range(1, 40)
+        .sliderRange(1, 20)
         .build()
     );
 
     private final Setting<Double> horizontal = sgPackets.add(new DoubleSetting.Builder()
         .name("horizontal")
-        .description("Fallback horizontal offset used when no wall-center target is available.")
-        .defaultValue(0.12)
+        .description("Horizontal offset applied per packet toward the wall.")
+        .defaultValue(0.055)
         .range(0.0, 0.35)
         .sliderRange(0.0, 0.18)
         .decimalPlaces(3)
@@ -133,25 +116,11 @@ public class PearlPhase extends Module {
 
     private final Setting<Double> vertical = sgPackets.add(new DoubleSetting.Builder()
         .name("vertical")
-        .description("Final vertical offset applied across each phase burst.")
-        .defaultValue(-0.02)
+        .description("Vertical offset applied per packet.")
+        .defaultValue(-0.032)
         .range(-0.35, 0.35)
         .sliderRange(-0.16, 0.16)
         .decimalPlaces(3)
-        .build()
-    );
-
-    private final Setting<Boolean> setLocalPosition = sgPackets.add(new BoolSetting.Builder()
-        .name("set-local-position")
-        .description("Moves the local player to the deepest sent packet position while phasing.")
-        .defaultValue(true)
-        .build()
-    );
-
-    private final Setting<Boolean> faceWall = sgPackets.add(new BoolSetting.Builder()
-        .name("face-wall")
-        .description("Uses packet yaw facing the selected wall direction.")
-        .defaultValue(true)
         .build()
     );
 
@@ -169,6 +138,13 @@ public class PearlPhase extends Module {
         .build()
     );
 
+    private final Setting<Boolean> cancelVelocityPackets = sgSafety.add(new BoolSetting.Builder()
+        .name("cancel-velocity-packets")
+        .description("Cancels knockback packets during the phase sequence, without needing Velocity.")
+        .defaultValue(true)
+        .build()
+    );
+
     private final Setting<Integer> disableAfter = sgSafety.add(new IntSetting.Builder()
         .name("disable-after")
         .description("Automatically disables the module after this many ticks. Set to 0 to keep it enabled.")
@@ -179,12 +155,9 @@ public class PearlPhase extends Module {
     );
 
     private int ticks;
-    private int phaseTicksLeft;
-    private int phaseDelayTicks;
+    private int sequenceTicks;
     private boolean thrown;
     private Direction wallDirection;
-    private Direction phaseDirection;
-    private BlockPos phaseTargetBlock;
 
     public PearlPhase() {
         super(Eclipse.CATEGORY, "pearl-phase", "Throws a pearl near a wall and sends a configurable phase packet sequence.");
@@ -193,12 +166,9 @@ public class PearlPhase extends Module {
     @Override
     public void onActivate() {
         ticks = 0;
-        phaseTicksLeft = 0;
-        phaseDelayTicks = 0;
+        sequenceTicks = 0;
         thrown = false;
         wallDirection = null;
-        phaseDirection = null;
-        phaseTargetBlock = null;
     }
 
     @EventHandler
@@ -208,15 +178,8 @@ public class PearlPhase extends Module {
         ticks++;
         wallDirection = findWallDirection();
 
-        if (stopVelocity.get() && phaseTicksLeft > 0) {
+        if (stopVelocity.get() && sequenceTicks > 0) {
             mc.player.setVelocity(0.0, 0.0, 0.0);
-        }
-
-        if (phaseDelayTicks > 0) {
-            phaseDelayTicks--;
-        } else if (phaseTicksLeft > 0) {
-            sendPhaseBurst();
-            phaseTicksLeft--;
         }
 
         if (autoThrow.get() && !thrown && ticks >= throwDelay.get()) {
@@ -230,32 +193,25 @@ public class PearlPhase extends Module {
     }
 
     @EventHandler
+    private void onPacketReceive(PacketEvent.Receive event) {
+        if (!cancelVelocityPackets.get() || mc.player == null) return;
+        if (!thrown && sequenceTicks <= 0) return;
+
+        if (event.packet instanceof EntityVelocityUpdateS2CPacket packet && packet.getEntityId() == mc.player.getId()) {
+            event.setCancelled(true);
+        } else if (event.packet instanceof ExplosionS2CPacket) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
     private void onPacketSend(PacketEvent.Send event) {
         if (!(event.packet instanceof PlayerInteractItemC2SPacket packet)) return;
         if (mc.player == null || !isPearl(packet.getHand())) return;
 
         thrown = true;
-        phaseDirection = wallDirection != null ? wallDirection : Direction.fromHorizontalDegrees(mc.player.getYaw());
-        phaseTargetBlock = targetBlockFor(phaseDirection);
-
-        if (sequenceMode.get() == SequenceMode.AfterThrow || sequenceMode.get() == SequenceMode.Both) {
-            phaseDelayTicks = afterThrowDelay.get();
-            phaseTicksLeft = Math.max(phaseTicksLeft, phaseTicks.get());
-            if (phaseDelayTicks == 0) sendPhaseBurst();
-        }
-    }
-
-    @EventHandler
-    private void onPacketReceive(PacketEvent.Receive event) {
-        if (!(event.packet instanceof PlayerPositionLookS2CPacket) || mc.player == null || !thrown) return;
-        if (sequenceMode.get() != SequenceMode.AfterTeleport && sequenceMode.get() != SequenceMode.Both) return;
-
-        wallDirection = findWallDirection();
-        phaseDirection = wallDirection != null ? wallDirection : phaseDirection;
-        if (phaseTargetBlock == null && phaseDirection != null) phaseTargetBlock = targetBlockFor(phaseDirection);
-        phaseDelayTicks = 0;
-        phaseTicksLeft = Math.max(phaseTicksLeft, phaseTicks.get());
-        sendPhaseBurst();
+        sequenceTicks = 6;
+        sendPhaseSequence();
     }
 
     private void throwPearl() {
@@ -274,29 +230,31 @@ public class PearlPhase extends Module {
             hand = Hand.MAIN_HAND;
         }
 
-        mc.interactionManager.interactItem(mc.player, hand);
-        if (swing.get()) mc.player.swingHand(hand);
-        if (swapped && swapBack.get()) InvUtils.swapBack();
+        Hand finalHand = hand;
+        boolean finalSwapped = swapped;
+        Rotations.rotate(phaseYaw(), throwPitch.get(), 80, () -> {
+            mc.interactionManager.interactItem(mc.player, finalHand);
+            if (swing.get()) mc.player.swingHand(finalHand);
+            if (finalSwapped && swapBack.get()) InvUtils.swapBack();
+        });
     }
 
-    private void sendPhaseBurst() {
-        Direction direction = phaseDirection != null ? phaseDirection : (wallDirection != null ? wallDirection : Direction.fromHorizontalDegrees(mc.player.getYaw()));
-        Vec3d start = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ());
-        Vec3d target = phaseTarget(start, direction);
-        float yaw = faceWall.get() ? yawFor(direction) : mc.player.getYaw();
-        Vec3d last = target;
+    private void sendPhaseSequence() {
+        Direction direction = wallDirection != null ? wallDirection : Direction.fromHorizontalDegrees(mc.player.getYaw());
+        Vec3d dir = new Vec3d(direction.getOffsetX(), 0.0, direction.getOffsetZ());
+        Vec3d pos = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ());
+        float yaw = phaseYaw();
+        float pitch = packetPitch.get().floatValue();
 
         for (int i = 1; i <= packets.get(); i++) {
-            double progress = i / (double) packets.get();
-            Vec3d next = start.lerp(target, progress).add(0.0, vertical.get() * progress, 0.0);
-            last = next;
+            Vec3d next = pos.add(dir.multiply(horizontal.get() * i)).add(0.0, vertical.get() * i, 0.0);
             if (fullPackets.get()) {
                 mc.getNetworkHandler().sendPacket(new PlayerMoveC2SPacket.Full(
                     next.x,
                     next.y,
                     next.z,
                     yaw,
-                    mc.player.getPitch(),
+                    pitch,
                     mc.player.isOnGround(),
                     true
                 ));
@@ -310,42 +268,6 @@ public class PearlPhase extends Module {
                 ));
             }
         }
-
-        if (setLocalPosition.get()) {
-            mc.player.setPosition(last.x, last.y, last.z);
-        }
-    }
-
-    private Vec3d phaseTarget(Vec3d start, Direction direction) {
-        Vec3d dir = new Vec3d(direction.getOffsetX(), 0.0, direction.getOffsetZ());
-
-        if (centerInWallBlock.get() && phaseTargetBlock != null) {
-            BlockPos targetBlock = phaseTargetBlock;
-            double x = start.x;
-            double z = start.z;
-
-            if (direction.getOffsetX() != 0) x = targetBlock.getX() + 0.5;
-            if (direction.getOffsetZ() != 0) z = targetBlock.getZ() + 0.5;
-
-            return new Vec3d(x, start.y, z).add(dir.multiply(clipDistance.get()));
-        }
-
-        double fallback = Math.max(horizontal.get() * packets.get(), clipDistance.get());
-        return start.add(dir.multiply(fallback));
-    }
-
-    private BlockPos targetBlockFor(Direction direction) {
-        return mc.player.getBlockPos().offset(direction);
-    }
-
-    private float yawFor(Direction direction) {
-        return switch (direction) {
-            case SOUTH -> 0.0F;
-            case WEST -> 90.0F;
-            case NORTH -> 180.0F;
-            case EAST -> -90.0F;
-            default -> mc.player.getYaw();
-        };
     }
 
     private Direction findWallDirection() {
@@ -367,5 +289,20 @@ public class PearlPhase extends Module {
 
     private boolean isPearl(Hand hand) {
         return mc.player.getStackInHand(hand).isOf(Items.ENDER_PEARL);
+    }
+
+    private float phaseYaw() {
+        Direction direction = wallDirection != null ? wallDirection : Direction.fromHorizontalDegrees(mc.player.getYaw());
+        return (float) (directionYaw(direction) + yawOffset.get());
+    }
+
+    private double directionYaw(Direction direction) {
+        return switch (direction) {
+            case SOUTH -> 0.0;
+            case WEST -> 90.0;
+            case NORTH -> 180.0;
+            case EAST -> -90.0;
+            default -> mc.player.getYaw();
+        };
     }
 }

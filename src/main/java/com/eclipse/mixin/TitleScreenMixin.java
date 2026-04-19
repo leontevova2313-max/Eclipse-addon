@@ -1,14 +1,18 @@
 package com.eclipse.mixin;
 
 import eclipse.EclipseConfig;
-import eclipse.gui.ConstellationLogoRenderer;
 import eclipse.gui.EclipseCustomizationScreen;
+import eclipse.gui.TitleLogoLayout;
+import eclipse.skins.SkinCustomizationManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.LogoDrawer;
 import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.TitleScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.ClickableWidget;
+import net.minecraft.client.gui.widget.PlayerSkinWidget;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
@@ -18,6 +22,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.TreeMap;
+
 @Mixin(TitleScreen.class)
 public abstract class TitleScreenMixin {
     @Unique
@@ -25,6 +34,24 @@ public abstract class TitleScreenMixin {
 
     @Unique
     private static final int TEX_H = 540;
+
+    @Unique
+    private static final int LOGO_W = TitleLogoLayout.LOGO_TEXTURE_WIDTH;
+
+    @Unique
+    private static final int LOGO_H = TitleLogoLayout.LOGO_TEXTURE_HEIGHT;
+
+    @Unique
+    private static final Identifier LOGO = Identifier.of("eclipse", "textures/gui/title/eclipse_logo.png");
+
+    @Unique
+    private PlayerSkinWidget eclipse$skinWidget;
+
+    @Unique
+    private int eclipse$titleButtonRows = 6;
+
+    @Unique
+    private static final Identifier TRANSITION_GLOW = Identifier.of("eclipse", "textures/gui/title/transition_glow.png");
 
     @Unique
     private static final Identifier[] FRAMES = new Identifier[] {
@@ -50,9 +77,22 @@ public abstract class TitleScreenMixin {
         int width = client.getWindow().getScaledWidth();
         int height = client.getWindow().getScaledHeight();
 
+        if (EclipseConfig.titleLogo()) {
+            eclipse$layoutTitleButtons(self);
+        }
+
+        int modelW = 76;
+        int modelH = 116;
+        int modelX = 22;
+        int modelY = Math.max(42, height / 4 + 4);
+        eclipse$skinWidget = new PlayerSkinWidget(modelW, modelH, client.getLoadedEntityModels(), SkinCustomizationManager::currentSkinTextures);
+        eclipse$skinWidget.setX(modelX);
+        eclipse$skinWidget.setY(modelY);
+        ((ScreenAccessor) self).eclipse$addDrawableChild(eclipse$skinWidget);
+
         ((ScreenAccessor) self).eclipse$addDrawableChild(ButtonWidget.builder(Text.translatable("eclipse.menu.customization"), button ->
             client.setScreen(new EclipseCustomizationScreen(self))
-        ).dimensions(width / 2 - 100, height / 4 + 156, 200, 20).build());
+        ).dimensions(modelX - 4, modelY + modelH + 8, modelW + 8, 20).build());
     }
 
     @Inject(method = "renderBackground", at = @At("HEAD"), cancellable = true)
@@ -61,6 +101,26 @@ public abstract class TitleScreenMixin {
 
         int sw = context.getScaledWindowWidth();
         int sh = context.getScaledWindowHeight();
+        int parallaxX = EclipseConfig.titleParallax() ? (mouseX - sw / 2) / 90 : 0;
+        int parallaxY = EclipseConfig.titleParallax() ? (mouseY - sh / 2) / 120 : 0;
+
+        if (EclipseConfig.customTitleBackground()) {
+            context.drawTexture(
+                RenderPipelines.GUI_TEXTURED,
+                EclipseConfig.customTitleBackgroundTexture(),
+                -Math.abs(parallaxX), -Math.abs(parallaxY),
+                0.0F, 0.0F,
+                sw + Math.abs(parallaxX) * 2, sh + Math.abs(parallaxY) * 2,
+                EclipseConfig.customTitleBackgroundWidth(),
+                EclipseConfig.customTitleBackgroundHeight(),
+                EclipseConfig.customTitleBackgroundWidth(),
+                EclipseConfig.customTitleBackgroundHeight()
+            );
+            eclipse$renderTitleColorOverlays(context);
+            eclipse$renderTransitionGlow(context);
+            ci.cancel();
+            return;
+        }
 
         int frameA = 0;
         int frameB = 1;
@@ -73,7 +133,7 @@ public abstract class TitleScreenMixin {
             frameA = ((int) phase) % FRAMES.length;
             frameB = (frameA + 1) % FRAMES.length;
             fade = phase - (int) phase;
-            fade = fade * fade * (3.0F - 2.0F * fade);
+            if (EclipseConfig.titleSmoothInterpolation()) fade = EclipseConfig.ease(fade);
         }
 
         int colorA = EclipseConfig.titleCrossfade()
@@ -83,9 +143,9 @@ public abstract class TitleScreenMixin {
         context.drawTexture(
             RenderPipelines.GUI_TEXTURED,
             FRAMES[frameA],
-            0, 0,
+            -Math.abs(parallaxX), -Math.abs(parallaxY),
             0.0F, 0.0F,
-            sw, sh,
+            sw + Math.abs(parallaxX) * 2, sh + Math.abs(parallaxY) * 2,
             TEX_W, TEX_H,
             TEX_W, TEX_H,
             colorA
@@ -97,21 +157,24 @@ public abstract class TitleScreenMixin {
             context.drawTexture(
                 RenderPipelines.GUI_TEXTURED,
                 FRAMES[frameB],
-                0, 0,
+                -Math.abs(parallaxX), -Math.abs(parallaxY),
                 0.0F, 0.0F,
-                sw, sh,
+                sw + Math.abs(parallaxX) * 2, sh + Math.abs(parallaxY) * 2,
                 TEX_W, TEX_H,
                 TEX_W, TEX_H,
                 colorB
             );
         }
 
-        int dim = EclipseConfig.backgroundDim();
-        if (dim > 0) {
-            context.fill(0, 0, sw, sh, (Math.min(220, dim) << 24) | 0x00000610);
-        }
-
+        eclipse$renderTitleColorOverlays(context);
+        eclipse$renderTransitionGlow(context);
         ci.cancel();
+    }
+
+    @Inject(method = "renderBackground", at = @At("TAIL"))
+    private void eclipse$renderDisabledBackgroundGlow(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        if (EclipseConfig.titleBackground()) return;
+        eclipse$renderTransitionGlow(context);
     }
 
     @Redirect(
@@ -131,23 +194,162 @@ public abstract class TitleScreenMixin {
     private void eclipse$renderLogo(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!EclipseConfig.titleLogo()) return;
 
-        int sw = context.getScaledWindowWidth();
-        int logoW = Math.min(EclipseConfig.logoWidth(), Math.max(180, sw - 40));
-        int logoH = ConstellationLogoRenderer.height(logoW);
-        int x = (sw - logoW) / 2;
-        int y = EclipseConfig.logoY();
-
-        ConstellationLogoRenderer.render(
-            context,
-            "ECLIPSE",
-            x,
-            y + Math.max(0, 36 - logoH / 3),
-            logoW,
-            EclipseConfig.logoColor(),
-            EclipseConfig.logoGlowColor(),
-            EclipseConfig.logoStarSize(),
-            EclipseConfig.logoLineAlpha(),
-            EclipseConfig.logoTwinkle()
+        TitleLogoLayout.Bounds layout = TitleLogoLayout.calculate(
+            context.getScaledWindowWidth(),
+            context.getScaledWindowHeight(),
+            EclipseConfig.logoWidth(),
+            eclipse$titleButtonRows
         );
+
+        context.drawTexture(
+            RenderPipelines.GUI_TEXTURED,
+            LOGO,
+            eclipse$animatedLogoX(layout), eclipse$animatedLogoY(layout),
+            0.0F, 0.0F,
+            eclipse$animatedLogoWidth(layout), eclipse$animatedLogoHeight(layout),
+            LOGO_W, LOGO_H,
+            LOGO_W, LOGO_H,
+            EclipseConfig.withAlpha(0x00FFFFFF, eclipse$logoAlpha())
+        );
+
+    }
+
+    @Unique
+    private int eclipse$animatedLogoWidth(TitleLogoLayout.Bounds layout) {
+        return layout.logoWidth() + eclipse$logoPulsePixels(layout.logoWidth());
+    }
+
+    @Unique
+    private int eclipse$animatedLogoHeight(TitleLogoLayout.Bounds layout) {
+        return layout.logoHeight() + eclipse$logoPulsePixels(layout.logoHeight());
+    }
+
+    @Unique
+    private int eclipse$animatedLogoX(TitleLogoLayout.Bounds layout) {
+        return layout.logoX() - eclipse$logoPulsePixels(layout.logoWidth()) / 2;
+    }
+
+    @Unique
+    private int eclipse$animatedLogoY(TitleLogoLayout.Bounds layout) {
+        return layout.logoY() - eclipse$logoPulsePixels(layout.logoHeight()) / 2;
+    }
+
+    @Unique
+    private int eclipse$logoPulsePixels(int base) {
+        if (EclipseConfig.logoAnimation() != EclipseConfig.LogoAnimation.Pulse) return 0;
+        double wave = (Math.sin(System.currentTimeMillis() / 520.0 * Math.max(0.1, EclipseConfig.globalAnimationSpeed())) + 1.0) * 0.5;
+        return (int) Math.round(base * 0.025 * wave);
+    }
+
+    @Unique
+    private int eclipse$logoAlpha() {
+        int alpha = EclipseConfig.logoOpacity();
+        if (EclipseConfig.logoAnimation() == EclipseConfig.LogoAnimation.Fade) {
+            double wave = (Math.sin(System.currentTimeMillis() / 650.0 * Math.max(0.1, EclipseConfig.globalAnimationSpeed())) + 1.0) * 0.5;
+            alpha = (int) Math.round(alpha * (0.72 + wave * 0.28));
+        }
+        return Math.max(0, Math.min(255, alpha));
+    }
+
+    @Unique
+    private void eclipse$layoutTitleButtons(TitleScreen screen) {
+        List<ClickableWidget> widgets = new ArrayList<>();
+        for (Element element : screen.children()) {
+            if (element instanceof ClickableWidget widget && eclipse$isCentralTitleButton(widget)) {
+                widgets.add(widget);
+            }
+        }
+
+        if (widgets.isEmpty()) return;
+
+        TreeMap<Integer, List<ClickableWidget>> rows = new TreeMap<>();
+        for (ClickableWidget widget : widgets) {
+            rows.computeIfAbsent(widget.getY(), ignored -> new ArrayList<>()).add(widget);
+        }
+
+        eclipse$titleButtonRows = rows.size();
+        TitleLogoLayout.Bounds layout = TitleLogoLayout.calculate(
+            screen.width,
+            screen.height,
+            EclipseConfig.logoWidth(),
+            eclipse$titleButtonRows
+        );
+
+        int row = 0;
+        for (List<ClickableWidget> rowWidgets : rows.values()) {
+            rowWidgets.sort(Comparator.comparingInt(ClickableWidget::getX));
+            int y = layout.rowY(row++);
+            for (ClickableWidget widget : rowWidgets) {
+                widget.setY(y);
+            }
+        }
+    }
+
+    @Unique
+    private boolean eclipse$isCentralTitleButton(ClickableWidget widget) {
+        int center = MinecraftClient.getInstance().getWindow().getScaledWidth() / 2;
+        int widgetCenter = widget.getX() + widget.getWidth() / 2;
+        return Math.abs(widgetCenter - center) <= 130 && widget.getY() >= 70 && widget.getY() < MinecraftClient.getInstance().getWindow().getScaledHeight() - 24;
+    }
+
+    @Unique
+    private void eclipse$renderTransitionGlow(DrawContext context) {
+        float transition = EclipseConfig.titleBackgroundTransition();
+        if (transition <= 0.0F) return;
+
+        int sw = context.getScaledWindowWidth();
+        int sh = context.getScaledWindowHeight();
+        int size = (int) (Math.max(sw, sh) * (0.72F + 0.18F * transition));
+        int x = (int) (sw * 0.505F) - size / 2;
+        int y = (int) (sh * 0.225F) - size / 2;
+        int alpha = Math.min(135, Math.max(0, (int) (135.0F * transition)));
+        int color = (alpha << 24) | 0x00FFFFFF;
+
+        context.drawTexture(
+            RenderPipelines.GUI_TEXTURED,
+            TRANSITION_GLOW,
+            x, y,
+            0.0F, 0.0F,
+            size, size,
+            1024, 1024,
+            1024, 1024,
+            color
+        );
+    }
+
+    @Unique
+    private void eclipse$renderTitleColorOverlays(DrawContext context) {
+        int sw = context.getScaledWindowWidth();
+        int sh = context.getScaledWindowHeight();
+
+        int brightness = EclipseConfig.titleBackgroundBrightness();
+        if (brightness < 100) {
+            int alpha = Math.min(180, (100 - brightness) * 2);
+            context.fill(0, 0, sw, sh, alpha << 24);
+        } else if (brightness > 100) {
+            int alpha = Math.min(100, brightness - 100);
+            context.fill(0, 0, sw, sh, (alpha << 24) | 0x00FFFFFF);
+        }
+
+        int contrast = EclipseConfig.titleBackgroundContrast();
+        if (contrast > 100) {
+            int alpha = Math.min(90, contrast - 100);
+            context.fillGradient(0, 0, sw, sh / 2, alpha << 24, 0x00000000);
+            context.fillGradient(0, sh / 2, sw, sh, 0x00000000, alpha << 24);
+        } else if (contrast < 100) {
+            int alpha = Math.min(90, 100 - contrast);
+            context.fill(0, 0, sw, sh, (alpha << 24) | 0x007F7F7F);
+        }
+
+        if (EclipseConfig.titleVignette()) {
+            int alpha = Math.max(0, Math.min(180, EclipseConfig.titleVignetteStrength()));
+            int color = alpha << 24;
+            int bandX = Math.max(16, sw / 7);
+            int bandY = Math.max(16, sh / 7);
+            context.fillGradient(0, 0, bandX, sh, color, 0x00000000);
+            context.fillGradient(sw - bandX, 0, sw, sh, 0x00000000, color);
+            context.fillGradient(0, 0, sw, bandY, color, 0x00000000);
+            context.fillGradient(0, sh - bandY, sw, sh, 0x00000000, color);
+        }
     }
 }

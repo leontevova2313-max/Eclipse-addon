@@ -8,6 +8,7 @@ import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.gui.screen.option.OptionsScreen;
 import net.minecraft.util.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -15,8 +16,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Screen.class)
 public abstract class ScreenBackgroundMixin {
-    @Unique
-    private static final Identifier DEFAULT_BG = Identifier.of("eclipse", "textures/gui/bg.png");
+    @Shadow
+    protected abstract void applyBlur(DrawContext context);
 
     @Unique
     private static final Identifier OPTIONS_BG = Identifier.of("eclipse", "textures/gui/bg_options.png");
@@ -35,14 +36,14 @@ public abstract class ScreenBackgroundMixin {
             background = MULTIPLAYER_BG;
         } else if (self instanceof OptionsScreen) {
             background = OPTIONS_BG;
-        } else if (EclipseConfig.allScreenBackgrounds()) {
-            background = DEFAULT_BG;
         } else {
             return;
         }
 
         int sw = context.getScaledWindowWidth();
         int sh = context.getScaledWindowHeight();
+
+        if (EclipseConfig.uiBlurStrength() > 0) applyBlur(context);
 
         context.drawTexture(
                 RenderPipelines.GUI_TEXTURED,
@@ -54,10 +55,8 @@ public abstract class ScreenBackgroundMixin {
                 1920, 1080
         );
 
-        int dim = EclipseConfig.backgroundDim();
-        if (dim > 0) {
-            context.fill(0, 0, sw, sh, (Math.min(220, dim) << 24) | 0x00000610);
-        }
+        int dim = Math.max(0, Math.min(220, EclipseConfig.backgroundDimStrength()));
+        if (dim > 0) context.fill(0, 0, sw, sh, dim << 24);
 
         ci.cancel();
     }

@@ -3,6 +3,7 @@ package eclipse.gui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.item.ItemStack;
 
 public final class EclipseToastOverlay {
     private static final long DURATION_MS = 3000L;
@@ -11,6 +12,7 @@ public final class EclipseToastOverlay {
 
     private static String title;
     private static String body;
+    private static ItemStack icon = ItemStack.EMPTY;
     private static int accent;
     private static long startedAt;
 
@@ -18,8 +20,13 @@ public final class EclipseToastOverlay {
     }
 
     public static void show(String title, String body, int accent) {
+        show(title, body, ItemStack.EMPTY, accent);
+    }
+
+    public static void show(String title, String body, ItemStack icon, int accent) {
         EclipseToastOverlay.title = title;
         EclipseToastOverlay.body = body;
+        EclipseToastOverlay.icon = icon == null ? ItemStack.EMPTY : icon.copy();
         EclipseToastOverlay.accent = accent;
         EclipseToastOverlay.startedAt = System.currentTimeMillis();
     }
@@ -37,11 +44,13 @@ public final class EclipseToastOverlay {
         if (mc == null || mc.textRenderer == null) return;
 
         TextRenderer text = mc.textRenderer;
-        String titleText = fit(text, title, MAX_WIDTH - 28);
-        String bodyText = fit(text, body, MAX_WIDTH - 28);
+        boolean hasIcon = !icon.isEmpty();
+        int iconSpace = hasIcon ? 24 : 0;
+        String titleText = fit(text, title, MAX_WIDTH - 28 - iconSpace);
+        String bodyText = fit(text, body, MAX_WIDTH - 28 - iconSpace);
 
         int contentWidth = Math.max(text.getWidth(titleText), text.getWidth(bodyText));
-        int width = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, contentWidth + 28));
+        int width = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, contentWidth + 28 + iconSpace));
         int height = 34;
         int x = (context.getScaledWindowWidth() - width) / 2;
 
@@ -63,13 +72,20 @@ public final class EclipseToastOverlay {
         context.fillGradient(x + 3, y, x + width, y + 1, soft, 0x00000000);
         context.fillGradient(x + 3, y + height - 1, x + width, y + height, 0x00000000, soft);
 
-        context.drawTextWithShadow(text, titleText, x + 12, y + 6, textColor);
-        context.drawTextWithShadow(text, bodyText, x + 12, y + 19, mutedColor);
+        int textX = x + 12;
+        if (hasIcon) {
+            context.drawItem(icon, x + 10, y + 9);
+            textX += 24;
+        }
+
+        context.drawTextWithShadow(text, titleText, textX, y + 6, textColor);
+        context.drawTextWithShadow(text, bodyText, textX, y + 19, mutedColor);
     }
 
     private static void clear() {
         title = null;
         body = null;
+        icon = ItemStack.EMPTY;
         startedAt = 0L;
     }
 

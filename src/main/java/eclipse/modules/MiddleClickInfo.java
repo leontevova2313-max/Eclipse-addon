@@ -14,6 +14,7 @@ import meteordevelopment.orbit.EventHandler;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.EntityHitResult;
@@ -87,6 +88,6 @@ public class MiddleClickInfo extends Module {
         BlockState state = mc.world.getBlockState(pos);
         String name = state.getBlock().getName().getString();
         String id = Registries.BLOCK.getId(state.getBlock()).toString();
-        EclipseToastOverlay.show("Block: " + name, id + "  " + pos.getX() + " " + pos.getY() + " " + pos.getZ(), BLOCK_ACCENT);
+        EclipseToastOverlay.show("Block: " + name, id, new ItemStack(state.getBlock()), BLOCK_ACCENT);
     }
 }
