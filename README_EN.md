@@ -1,5 +1,9 @@
 # Eclipse Addon
 
+<p align="center">
+  <img src="docs/eclipse_logo.png" alt="Eclipse" width="720">
+</p>
+
 Eclipse is a client-side Meteor Client addon for Minecraft 1.21.11.
 It focuses on server diagnostics, movement tuning, Eclipse-themed UI visuals,
 Litematica schematic printing, and small quality-of-life tools.

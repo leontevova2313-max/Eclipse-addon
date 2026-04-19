@@ -1,5 +1,9 @@
 # Eclipse Addon
 
+<p align="center">
+  <img src="docs/eclipse_logo.png" alt="Eclipse" width="720">
+</p>
+
 [English version](README_EN.md)
 
 Eclipse - клиентский аддон для Meteor Client под Minecraft `1.21.11`.
