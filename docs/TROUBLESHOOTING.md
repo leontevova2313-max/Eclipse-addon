@@ -1,4 +1,4 @@
-# Troubleshooting
+﻿# Troubleshooting
 
 ## Game Does Not Start
 
@@ -152,3 +152,4 @@ Check:
 - max notifications is not set too low.
 
 If you prefer Meteor chat feedback, disable `use-custom-notifier`.
+

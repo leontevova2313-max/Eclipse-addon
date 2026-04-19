@@ -1,4 +1,4 @@
-# Installation
+﻿# Installation
 
 ## Requirements
 
@@ -74,3 +74,4 @@ Eclipse skin/cape preview state is stored under the Minecraft run directory:
 ```text
 eclipse-skins/customization.txt
 ```
+

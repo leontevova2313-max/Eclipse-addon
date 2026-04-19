@@ -1,26 +1,23 @@
-# Eclipse Addon
+# Eclipse-Addon
 
 <p align="center">
-  <img src="docs/eclipse_logo.png" alt="Eclipse" width="720">
+  <img src="docs/eclipse_logo.png" alt="Eclipse-Addon" width="720">
 </p>
 
-Eclipse Addon is a client-side Meteor Client addon for Minecraft `1.21.11`.
-This repository is prepared as the first clean public release of the project.
-
-The goal of this release is to make the project understandable: what is
-included, what is stable enough to use, what is experimental, and what still
-needs careful testing.
+Eclipse-Addon is a client-side Meteor Client addon for Minecraft `1.21.11`.
+This repository is prepared as a clean first public release with documented
+modules, settings, installation steps, limitations, and release notes.
 
 ## Status
 
-- Release line: first clean release / beta core release.
-- Current project version: `0.2.0-beta.2`.
+- Release line: first clean public release.
+- Current project version: `1.0.0`.
 - Minecraft: `1.21.11`.
 - Fabric Loader: `0.18.2`.
 - Yarn mappings: `1.21.11+build.3`.
 - Meteor Client: `1.21.11-SNAPSHOT`.
 
-## What Eclipse Adds
+## What Eclipse-Addon Adds
 
 - Custom Eclipse title screen, menu background, logo layout, skin preview, and notifier.
 - Skin preview and official account skin/cape tools for the active Minecraft session.
@@ -40,7 +37,7 @@ Stable / release-ready:
 - `eclipse-camera`
 - `eclipse-name-guard`
 
-Beta / experimental:
+Advanced / server-sensitive:
 
 - `litematica-printer`
 - `eclipse-elytra`
@@ -71,12 +68,13 @@ Short version:
 
 1. Install Fabric Loader for Minecraft `1.21.11`.
 2. Install Meteor Client for Minecraft `1.21.11`.
-3. Put the Eclipse jar in your Minecraft `mods` folder.
+3. Put the Eclipse-Addon jar in your Minecraft `mods` folder.
 4. Start the game.
 5. Open Meteor GUI and find the `Eclipse` category.
 
 ## Documentation
 
+- [Project overview](docs/PROJECT_OVERVIEW.md)
 - [Release notes](RELEASE_NOTES.md)
 - [Changelog](CHANGELOG.md)
 - [Installation](docs/INSTALL.md)
@@ -84,7 +82,6 @@ Short version:
 - [Settings](docs/SETTINGS.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [FAQ](docs/FAQ.md)
-- [Beta 2 overview](docs/BETA_2.md)
 
 ## Building
 

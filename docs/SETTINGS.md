@@ -1,4 +1,4 @@
-# Settings Guide
+﻿# Settings Guide
 
 This guide explains the important settings and why the defaults are conservative.
 
@@ -316,3 +316,4 @@ Official account skin/cape actions:
 - use the active Minecraft session token;
 - do not spoof another account;
 - may take time to propagate to other players.
+

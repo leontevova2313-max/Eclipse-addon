@@ -1,4 +1,4 @@
-# Eclipse Addon
+﻿# Eclipse Addon
 
 <p align="center">
   <img src="docs/eclipse_logo.png" alt="Eclipse" width="720">
@@ -10,14 +10,14 @@ Litematica schematic printing, and small quality-of-life tools.
 
 For the current consolidated project state, use:
 
-- [Beta 2 Overview](docs/BETA_2.md)
+- [Project Overview](docs/PROJECT_OVERVIEW.md)
 
 This is a Fabric client mod and must be loaded together with Meteor Client.
 Use it only on servers where this kind of client-side tooling is allowed.
 
 ## Project status
 
-- This project is in beta.
+- This project is a first clean public release.
 - The project was made 100% by AI according to user requirements and edits.
 - Development and tuning target only the `play.karasique.com` server.
   Behavior on other servers is not guaranteed.
@@ -158,3 +158,4 @@ The repository includes two workflows:
 ## License
 
 This project uses the `CC0-1.0` license included in [`LICENSE`](LICENSE).
+

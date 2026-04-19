@@ -1,4 +1,4 @@
-# Modules
+﻿# Modules
 
 This page describes the modules that matter for the first clean release.
 
@@ -12,7 +12,7 @@ Stable / release-ready:
 - `eclipse-camera`
 - `eclipse-name-guard`
 
-Beta / experimental:
+Advanced / server-sensitive:
 
 - `litematica-printer`
 - `eclipse-elytra`
@@ -111,7 +111,7 @@ Purpose: reports duplicate Meteor module names.
 Why included: it helps catch addon conflicts before they become confusing GUI or
 command issues.
 
-## Beta / Experimental Modules
+## Advanced / server-sensitive Modules
 
 ### litematica-printer
 
@@ -183,7 +183,7 @@ Risks:
 - Servers can send position corrections after reduced knockback.
 - Aggressive settings may be detected or feel desynced.
 
-### Other beta modules
+### Other advanced modules
 
 - `eclipse-move`: conservative movement tuning.
 - `eclipse-flight`: packet fly / flight / glide profiles. High risk on strict servers.
@@ -193,7 +193,7 @@ Risks:
 - `eclipse-server-intel`: information gathering from server-sent events.
 - `external-cheat-trace`: local diagnostic tracing for other loaded client modules.
 
-Treat these as beta tools. Change one setting at a time and test carefully.
+Treat these as server-sensitive tools. Change one setting at a time and test carefully.
 
 ## Internal / Not Registered
 
@@ -206,3 +206,4 @@ These modules are not added in `Eclipse.java` for the first clean release:
 
 Reason: they are internal, server-profile-specific, or better suited for a
 diagnostic build than a clean public runtime release.
+

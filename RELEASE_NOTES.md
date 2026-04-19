@@ -1,8 +1,8 @@
-# Eclipse Addon 0.2.0-beta.2 Release Notes
+# Eclipse-Addon 1.0.0 Release Notes
 
-This release is the first clean public release candidate for Eclipse Addon. It is
-still a beta release, but the repository is now structured so users can
-understand what they are installing and which parts should be treated carefully.
+This is the first clean public release of Eclipse-Addon. The repository now has
+clear documentation, a release module list, installation instructions, settings
+guidance, troubleshooting, and FAQ pages.
 
 ## What Is Ready
 
@@ -27,7 +27,7 @@ understand what they are installing and which parts should be treated carefully.
   - official cape list for the active session;
   - official cape preview and apply flow.
 
-## Main Beta Features
+## Advanced Features
 
 - `litematica-printer`
 - `eclipse-elytra`
@@ -58,12 +58,12 @@ server-profile-specific, or better suited for diagnostic builds.
 
 ## Recommended First Launch
 
-1. Start Minecraft with Fabric, Meteor, and Eclipse installed.
+1. Start Minecraft with Fabric, Meteor, and Eclipse-Addon installed.
 2. Open Meteor GUI.
 3. Check the `Eclipse` category.
 4. Start with stable visual and utility modules.
-5. Test beta movement/printer modules only after confirming the client starts
-   cleanly.
+5. Test advanced movement/printer modules only after confirming the client
+   starts cleanly.
 
 ## Things To Watch
 

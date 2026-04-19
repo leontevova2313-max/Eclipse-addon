@@ -1,4 +1,4 @@
-# FAQ
+﻿# FAQ
 
 ## What is Eclipse Addon?
 
@@ -16,9 +16,8 @@ No. Install Meteor separately.
 
 ## Is this a stable release?
 
-It is the first clean release / beta core release. Some modules are stable enough
-for normal use, while movement, packet, and printer modules remain beta or
-experimental.
+It is the first clean public release. Some modules are stable enough
+for normal use, while movement, packet, and printer modules remain advanced or server-sensitive.
 
 ## Which modules should I try first?
 
@@ -30,7 +29,7 @@ Start with:
 - `eclipse-camera`
 - `eclipse-name-guard`
 
-Then test beta modules one by one.
+Then test advanced modules one by one.
 
 ## Why are some source files not registered as modules?
 
@@ -98,3 +97,4 @@ Use the GitHub repository issue tracker if available. Include:
 - latest log;
 - module settings;
 - what you expected and what happened.
+

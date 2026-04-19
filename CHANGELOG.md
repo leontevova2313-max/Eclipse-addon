@@ -1,11 +1,11 @@
 # Changelog
 
-## 0.2.0-beta.2 - First Clean Release
+## 1.0.0 - First Clean Public Release
 
-This is the first documented clean release point for Eclipse Addon. Earlier work
-existed as active development changes, but this release is the first one with a
-structured module list, release notes, installation guide, settings guide, and
-known issue documentation.
+This is the first documented public release point for Eclipse-Addon. Earlier
+work existed as active development changes, but this release is the first one
+with a structured module list, release notes, installation guide, settings guide,
+and known issue documentation.
 
 ### Added
 
@@ -53,7 +53,8 @@ known issue documentation.
 
 ### Known Issues
 
-- Movement modules remain server-sensitive and should be treated as beta tools.
+- Movement modules remain server-sensitive and should be treated as advanced
+  server-dependent tools.
 - `litematica-printer` depends on schematic shape, inventory, block support,
   server timing, and Litematica compatibility.
 - Official skin/cape updates may take time to propagate through Mojang services.
