@@ -1,8 +1,10 @@
-﻿# Modules
+# Modules / Модули
 
-This page describes the modules that matter for the first clean release.
+## English
 
-## Release Classification
+This page describes the modules that matter for the public release.
+
+### Release Classification
 
 Stable / release-ready:
 
@@ -32,106 +34,37 @@ Internal / not registered in this release:
 - `eclipse-anti-crash`
 - `eclipse-custom-packets`
 
-## Stable Modules
+### Stable Modules
 
-### eclipse-visuals
+`eclipse-visuals` controls Eclipse menu visuals, title background, logo layout,
+crosshair, skin preview, and notification overlay. It is included because it is
+the main identity layer of the addon and does not depend on server behavior.
 
-Purpose: controls Eclipse menu visuals, title background, logo layout, crosshair,
-skin preview, and notification overlay.
+Recommended settings: keep adaptive performance and logo auto-scale enabled, and
+use a small notification limit.
 
-Why included: it is the main identity layer of the addon and does not depend on
-server behavior.
+`chat-fix` improves chat usability without breaking Minecraft signed chat. It
+adds clickable links and quick reply suggestions only where the message can be
+decorated safely. Signed chat messages are left untouched.
 
-Recommended settings:
+Recommended settings: keep clickable links and names enabled. Set
+`reply-command` to the server format, for example `/msg {name} `.
 
-- Keep adaptive performance enabled.
-- Keep logo auto-scale enabled.
-- Use custom notifier with a small max notification count.
+`middle-click-info` adds target inspection, Meteor friend add workflow, entity
+preview, and configurable range. Recommended range is `6.0`.
 
-Risks:
+`eclipse-camera` provides client-side camera/FOV tuning. Keep values conservative.
 
-- Custom backgrounds and animations can be visually heavy on weak systems.
-- Custom crosshair is client-side only.
+`eclipse-name-guard` reports duplicate Meteor module names and helps detect addon
+conflicts.
 
-### chat-fix
+### Advanced / Server-Sensitive Modules
 
-Purpose: improves chat usability without breaking Minecraft signed chat.
+`litematica-printer` places blocks from a loaded Litematica schematic using
+candidate filtering, inventory checks, placement attempts, verification, retries,
+and temporary skips.
 
-What it does:
-
-- Adds optional prefix to normal outgoing messages.
-- Makes plain links clickable in unsigned/system messages.
-- Makes detected player names clickable for quick reply suggestions.
-- Leaves signed chat messages untouched.
-
-Why included: it fixes day-to-day chat usability and avoids red chat desync
-warnings by not rewriting signed messages.
-
-Recommended settings:
-
-- Keep clickable links enabled.
-- Keep clickable names enabled.
-- Set `reply-command` to match the server, for example `/msg {name} `.
-
-Risks:
-
-- Prefixing outgoing chat sends a modified player message. Disable prefix if a
-  server does not allow it.
-- Name detection is pattern-based and may not catch every custom chat format.
-
-### middle-click-info
-
-Purpose: adds practical target inspection and friend add workflow.
-
-What it does:
-
-- Middle-click a player to add them to Meteor friends.
-- Middle-click blocks/entities to show information.
-- Highlights player/mob targets in 3D.
-- Uses a configurable distance range.
-
-Recommended settings:
-
-- Range: `6.0`.
-- Entity preview: enabled.
-- Cancel vanilla middle-click: enabled if you do not need pick-block behavior.
-
-### eclipse-camera
-
-Purpose: fine-tunes camera/FOV behavior.
-
-Why included: camera tweaks are visual/client-side and useful for normal play.
-
-Recommended settings: keep values conservative.
-
-### eclipse-name-guard
-
-Purpose: reports duplicate Meteor module names.
-
-Why included: it helps catch addon conflicts before they become confusing GUI or
-command issues.
-
-## Advanced / server-sensitive Modules
-
-### litematica-printer
-
-Purpose: places blocks from the loaded Litematica schematic with a controlled
-pipeline.
-
-What it does:
-
-- Reads selected Litematica placement through a reflection bridge.
-- Compares schematic state to world state.
-- Filters impossible targets.
-- Checks item availability.
-- Attempts placement.
-- Verifies result.
-- Retries or temporarily skips failed positions.
-
-Why included: it is one of the main practical features of the addon, but it still
-depends on real server timing and block rules.
-
-Recommended settings:
+Recommended first settings:
 
 - `blocks-per-tick`: `1`
 - `tick-delay`: `2`
@@ -140,70 +73,132 @@ Recommended settings:
 - `max-retries`: `3`
 - `pause-when-missing-blocks`: enabled
 
-Risks:
+Known limitations: complex NBT blocks are not fully recreated, directional
+blocks can still need manual correction, and server timing can affect placement.
 
-- Complex blocks with NBT are not fully recreated.
-- Directional blocks can still need manual correction.
-- Server anticheat, ping, and TPS can affect placement.
-- Requires Litematica and a loaded placement.
+`eclipse-elytra` provides elytra flight profiles and sustained flight control.
+Start with conservative speeds and avoid aggressive boosts until tested.
 
-### eclipse-elytra
+`eclipse-velocity` controls knockback response through packet-side handling. It
+supports horizontal and vertical scaling and explosion velocity handling.
 
-Purpose: provides elytra flight profiles and sustained flight control.
+Other advanced modules:
 
-Recommended settings:
+- `eclipse-move`
+- `eclipse-flight`
+- `eclipse-no-slow`
+- `pearl-phase`
+- `ping-spoof`
+- `eclipse-server-intel`
+- `external-cheat-trace`
 
-- Use conservative speeds.
-- Keep server-safe behavior enabled where available.
-- Test without aggressive boost values first.
+Treat these as server-sensitive tools. Change one setting at a time and test
+carefully.
 
-Risks:
+### Internal / Not Registered
 
-- Server corrections can interrupt flight.
-- Strict servers may reject or correct movement.
+`server-diagnostics`, `server-auto-setup`, `eclipse-anti-crash`, and
+`eclipse-custom-packets` remain in source form but are not registered in the
+clean public runtime.
 
-### eclipse-velocity
+## Русский
 
-Purpose: controls knockback response.
+Эта страница описывает модули, которые важны для публичного релиза.
 
-What it does:
+### Классификация релиза
 
-- Handles player velocity packets.
-- Supports cancel and scale behavior.
-- Separates horizontal and vertical multipliers.
-- Handles explosion knockback.
+Стабильные / готовые к обычному использованию:
 
-Recommended settings:
+- `eclipse-visuals`
+- `chat-fix`
+- `middle-click-info`
+- `eclipse-camera`
+- `eclipse-name-guard`
 
-- Conservative testing: horizontal `50`, vertical `50`.
-- Full cancel testing: horizontal `0`, vertical `0`.
+Продвинутые / зависят от сервера:
 
-Risks:
+- `litematica-printer`
+- `eclipse-elytra`
+- `eclipse-velocity`
+- `eclipse-move`
+- `eclipse-flight`
+- `eclipse-no-slow`
+- `pearl-phase`
+- `ping-spoof`
+- `eclipse-server-intel`
+- `external-cheat-trace`
 
-- Servers can send position corrections after reduced knockback.
-- Aggressive settings may be detected or feel desynced.
-
-### Other advanced modules
-
-- `eclipse-move`: conservative movement tuning.
-- `eclipse-flight`: packet fly / flight / glide profiles. High risk on strict servers.
-- `eclipse-no-slow`: no-slow style behavior using multipliers and packet pulses.
-- `pearl-phase`: server-specific pearl phase sequence.
-- `ping-spoof`: controlled latency packet queue.
-- `eclipse-server-intel`: information gathering from server-sent events.
-- `external-cheat-trace`: local diagnostic tracing for other loaded client modules.
-
-Treat these as server-sensitive tools. Change one setting at a time and test carefully.
-
-## Internal / Not Registered
-
-These modules are not added in `Eclipse.java` for the first clean release:
+Внутренние / не зарегистрированы в этом релизе:
 
 - `server-diagnostics`
 - `server-auto-setup`
 - `eclipse-anti-crash`
 - `eclipse-custom-packets`
 
-Reason: they are internal, server-profile-specific, or better suited for a
-diagnostic build than a clean public runtime release.
+### Стабильные модули
 
+`eclipse-visuals` управляет визуальной частью меню Eclipse, title background,
+layout логотипа, crosshair, skin preview и notification overlay. Модуль включён,
+потому что это основной визуальный слой addon и он не зависит от поведения сервера.
+
+Рекомендуемые настройки: оставить adaptive performance и logo auto-scale
+включёнными, а лимит уведомлений держать небольшим.
+
+`chat-fix` улучшает удобство чата без поломки Minecraft signed chat. Он добавляет
+кликабельные ссылки и быстрые reply suggestions только там, где сообщение можно
+безопасно декорировать. Signed chat сообщения не трогаются.
+
+Рекомендуемые настройки: оставить clickable links и names включёнными. Настроить
+`reply-command` под сервер, например `/msg {name} `.
+
+`middle-click-info` добавляет проверку цели, добавление игроков в Meteor friends,
+preview сущностей и настройку дистанции. Рекомендуемая дистанция: `6.0`.
+
+`eclipse-camera` даёт client-side настройку camera/FOV. Значения лучше держать
+консервативными.
+
+`eclipse-name-guard` сообщает о дублях имён Meteor модулей и помогает находить
+конфликты addon.
+
+### Продвинутые / server-sensitive модули
+
+`litematica-printer` ставит блоки из загруженной Litematica schematic через
+фильтрацию кандидатов, проверку инвентаря, placement attempts, verification,
+retries и temporary skips.
+
+Рекомендуемые первые настройки:
+
+- `blocks-per-tick`: `1`
+- `tick-delay`: `2`
+- `build-order`: `StableSupport`
+- `retry-delay`: около `12`
+- `max-retries`: `3`
+- `pause-when-missing-blocks`: включено
+
+Ограничения: complex NBT blocks не полностью воспроизводятся, directional blocks
+могут требовать ручной коррекции, а server timing может влиять на placement.
+
+`eclipse-elytra` добавляет elytra flight profiles и sustained flight control.
+Начинай с консервативных скоростей и не включай агрессивные boost значения до теста.
+
+`eclipse-velocity` управляет knockback response через packet-side handling.
+Поддерживает horizontal/vertical scaling и explosion velocity handling.
+
+Другие advanced модули:
+
+- `eclipse-move`
+- `eclipse-flight`
+- `eclipse-no-slow`
+- `pearl-phase`
+- `ping-spoof`
+- `eclipse-server-intel`
+- `external-cheat-trace`
+
+Считай их server-sensitive инструментами. Меняй одну настройку за раз и проверяй
+поведение аккуратно.
+
+### Internal / не зарегистрированы
+
+`server-diagnostics`, `server-auto-setup`, `eclipse-anti-crash` и
+`eclipse-custom-packets` остаются в исходниках, но не регистрируются в чистом
+публичном runtime.

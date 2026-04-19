@@ -1,6 +1,8 @@
-﻿# Troubleshooting
+# Troubleshooting / Решение проблем
 
-## Game Does Not Start
+## English
+
+### Game Does Not Start
 
 Check:
 
@@ -13,7 +15,7 @@ Check:
 If you use Prism Launcher, open the instance `mods` folder and remove older
 Eclipse jars before adding a new one.
 
-## Eclipse Category Is Missing
+### Eclipse Category Is Missing
 
 Possible causes:
 
@@ -24,69 +26,24 @@ Possible causes:
 
 Check the latest log for `Eclipse` and Fabric loading errors.
 
-## Yellow Splash Text Appears On Main Menu
+### Skin Preview Resets
 
-In the custom Eclipse title menu, vanilla splash text should be disabled.
+Temporary network errors or invalid PNG files should not erase the last valid
+skin. If the preview resets, check that the local file still exists, verify PNG
+size, load the skin again, and remove `eclipse-skins/customization.txt` only if
+the saved state is corrupted.
 
-If it appears:
+### Official Skin Or Cape Does Not Load
 
-- confirm that the current jar is the new build;
-- remove old Eclipse jars;
-- verify `eclipse-visuals` and title logo settings;
-- restart the game.
+Check that the username is valid, network access is available, Mojang services
+are reachable, and the active session is a real Microsoft/Minecraft account.
+The addon does not spoof account authentication.
 
-## Skin Preview Resets
+### Litematica Printer Does Nothing
 
-Expected behavior:
-
-- temporary network errors should not erase the last valid skin;
-- invalid PNG files should not erase the last valid local skin;
-- selected state should be restored from `eclipse-skins/customization.txt`.
-
-If it resets:
-
-- check that the selected local file still exists;
-- check the PNG size;
-- try loading the skin again from the customization screen;
-- remove a broken `customization.txt` only if the saved state is corrupted.
-
-## Official Skin By Username Does Not Load
-
-Check:
-
-- username is 1-16 characters;
-- username contains only letters, numbers, and underscores;
-- network access is available;
-- Mojang/Minecraft services are reachable.
-
-The addon caches successful username loads. Failed loads should not replace the
-previous valid preview.
-
-## Official Cape List Does Not Load
-
-Official capes require the active authenticated Minecraft session.
-
-Check:
-
-- you are logged into a real Microsoft/Minecraft account;
-- the current account owns capes;
-- the active account in the Eclipse screen is the same as the launched Minecraft
-  session;
-- network access is available.
-
-The addon does not spoof account auth. To manage another account's capes, launch
-the game through the launcher with that account.
-
-## Litematica Printer Does Nothing
-
-Check:
-
-- Litematica is installed.
-- A schematic is loaded.
-- A placement is selected.
-- Required blocks are in hotbar or inventory.
-- You are within placement range.
-- The target chunk is loaded.
+Check that Litematica is installed, a schematic is loaded, a placement is
+selected, required blocks are available, you are in range, and the target chunk
+is loaded.
 
 Start with:
 
@@ -94,62 +51,84 @@ Start with:
 - `tick-delay = 2`
 - `build-order = StableSupport`
 
-## Printer Repeats The Same Position
+### Movement Modules Rubberband
 
-Common causes:
+Server correction means the server rejected or adjusted your movement. Lower
+speed, disable boost/firework assist temporarily, use conservative settings, and
+test one movement module at a time.
 
-- missing support block;
-- entity collision;
-- wrong block state;
-- block requires special placement;
-- server rejects fast placement;
-- chunk or schematic state changed.
+### Chat Shows Desync Warning
 
-Try:
+The release avoids rewriting signed chat messages. If desync appears, disable
+chat prefix first and check whether another mod is modifying signed chat.
 
-- lower `blocks-per-tick`;
-- increase `retry-delay`;
-- increase `skip-impossible-ticks`;
-- place support blocks manually.
+### Notifications Do Not Show
 
-## Elytra Or Movement Modules Rubberband
+Check that `eclipse-visuals` and `use-custom-notifier` are enabled, HUD is not
+hidden, and `max-notifications` is not too low.
 
-Server correction means the server rejected or adjusted your movement.
+## Русский
 
-Try:
+### Игра не запускается
 
-- lower horizontal/vertical speed;
-- disable boost/firework assist temporarily;
-- use conservative/server-safe settings;
-- test one movement module at a time.
+Проверь:
 
-## Velocity Does Not Fully Cancel Knockback
+- Версия Minecraft: `1.21.11`.
+- Fabric Loader установлен.
+- Meteor Client установлен и подходит под ту же версию Minecraft.
+- В папке `mods` лежит только один Eclipse jar.
+- Используется Java `21`.
 
-Possible causes:
+Если используешь Prism Launcher, открой папку `mods` нужного instance и удали
+старые Eclipse jar перед добавлением новой версии.
 
-- server sends a correction after velocity handling;
-- another module modifies movement;
-- explosion settings are separate from normal velocity settings;
-- mode is not set to cancel/scale as expected.
+### Нет категории Eclipse
 
-Test in a controlled environment with one module enabled.
+Возможные причины:
 
-## Chat Shows Desync Warning
+- Jar лежит не в той папке `mods`.
+- Meteor Client отсутствует.
+- Запущен другой instance.
+- Игра упала до initialization addon.
 
-The release avoids rewriting signed chat messages. If desync appears:
+Проверь latest log по словам `Eclipse` и Fabric loading errors.
 
-- disable chat prefix first;
-- test with clickable links/names still enabled;
-- check whether another mod is modifying signed chat.
+### Skin preview сбрасывается
 
-## Notifications Do Not Show
+Временные network errors или invalid PNG не должны стирать последний валидный
+скин. Если preview сбрасывается, проверь что local file существует, проверь PNG
+size, загрузи скин снова и удаляй `eclipse-skins/customization.txt` только если
+сохранённое состояние повреждено.
 
-Check:
+### Официальный skin или cape не загружается
 
-- `eclipse-visuals` is enabled;
-- `use-custom-notifier` is enabled;
-- HUD is not hidden;
-- max notifications is not set too low.
+Проверь валидность ника, интернет, доступность Mojang services и то, что активная
+сессия является реальным Microsoft/Minecraft аккаунтом. Addon не spoof-ит
+авторизацию аккаунтов.
 
-If you prefer Meteor chat feedback, disable `use-custom-notifier`.
+### Litematica Printer ничего не делает
 
+Проверь, что Litematica установлена, schematic загружена, placement выбран,
+нужные блоки есть в инвентаре, ты находишься в range, а target chunk загружен.
+
+Начни с:
+
+- `blocks-per-tick = 1`
+- `tick-delay = 2`
+- `build-order = StableSupport`
+
+### Movement модули rubberband
+
+Server correction означает, что сервер отклонил или поправил движение. Уменьши
+speed, временно отключи boost/firework assist, используй консервативные настройки
+и тестируй один movement модуль за раз.
+
+### Chat показывает desync warning
+
+Релиз не переписывает signed chat messages. Если desync появляется, сначала
+отключи chat prefix и проверь, не меняет ли signed chat другой мод.
+
+### Notifications не показываются
+
+Проверь, что `eclipse-visuals` и `use-custom-notifier` включены, HUD не скрыт, а
+`max-notifications` не стоит слишком низко.
