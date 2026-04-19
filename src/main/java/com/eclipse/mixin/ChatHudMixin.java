@@ -18,7 +18,7 @@ public abstract class ChatHudMixin {
     private void eclipse$fixLinks(Text message, MessageSignatureData signature, MessageIndicator indicator, CallbackInfo ci) {
         if (eclipse$linkifying) return;
 
-        Text fixed = ChatFix.fixLinks(message);
+        Text fixed = ChatFix.fixLinks(message, signature != null);
         if (fixed == message) return;
 
         ci.cancel();

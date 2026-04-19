@@ -20,9 +20,11 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,22 +36,31 @@ public final class SkinCustomizationManager {
     private static final HttpClient HTTP = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
     private static final Identifier LOCAL_SKIN_ID = Identifier.of("eclipse", "local_skin_preview");
     private static final Identifier LOCAL_CAPE_ID = Identifier.of("eclipse", "local_cape");
+    private static final Map<String, SkinTextures> OFFICIAL_SKIN_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, AssetInfo.TextureAssetInfo> OFFICIAL_CAPE_CACHE = new ConcurrentHashMap<>();
+    private static final List<String> KNOWN_ACCOUNTS = new ArrayList<>();
 
     private static SkinSource skinSource = SkinSource.Default;
     private static SkinModel skinModel = SkinModel.Auto;
     private static CapeSource capeSource = CapeSource.Default;
     private static String officialName = "";
+    private static String resolvedOfficialName = "";
     private static Path loadedSkinFile;
     private static String loadedSkinFileName = "No skin loaded";
     private static volatile AssetInfo.TextureAssetInfo localSkinAsset;
+    private static volatile SkinTextures localSkinTextures;
     private static volatile PlayerSkinType localSkinType = PlayerSkinType.WIDE;
     private static Path localCapeFile;
     private static final List<CapeInfo> officialCapes = new ArrayList<>();
     private static int officialCapeIndex;
+    private static String selectedOfficialCapeId = "";
+    private static volatile AssetInfo.TextureAssetInfo selectedOfficialCapeAsset;
     private static volatile SkinTextures officialTextures;
     private static volatile AssetInfo.TextureAssetInfo localCapeAsset;
     private static volatile String status = "Idle";
     private static CompletableFuture<?> loadingTask;
+    private static String loadingOfficialName = "";
+    private static boolean loaded;
 
     private SkinCustomizationManager() {
     }
@@ -90,7 +101,55 @@ public final class SkinCustomizationManager {
 
     public static void officialName(String value) {
         officialName = value.trim();
+        refreshKnownAccounts();
         save();
+    }
+
+    public static String activeAccountName() {
+        String selected = selectedOfficialName();
+        return selected.isBlank() ? "No account" : selected;
+    }
+
+    public static String accountButtonText() {
+        refreshKnownAccounts();
+        if (KNOWN_ACCOUNTS.isEmpty()) return "Account: unavailable";
+        return "Account: " + activeAccountName() + (canManageSelectedAccount() ? " *" : " preview");
+    }
+
+    public static void nextAccount() {
+        refreshKnownAccounts();
+        if (KNOWN_ACCOUNTS.isEmpty()) {
+            status = "No accounts available";
+            return;
+        }
+
+        String current = activeAccountName();
+        int index = KNOWN_ACCOUNTS.indexOf(current);
+        String next = KNOWN_ACCOUNTS.get((index + 1 + KNOWN_ACCOUNTS.size()) % KNOWN_ACCOUNTS.size());
+        String sessionName = sessionUsername();
+        officialName = next.equalsIgnoreCase(sessionName) ? "" : next;
+        skinSource = SkinSource.Official;
+        capeSource = canManageSelectedAccount() ? CapeSource.Official : CapeSource.Default;
+        save();
+        refreshOfficialPreview();
+        if (canManageSelectedAccount()) refreshAccountProfile();
+        else status = "Preview only. Launch with this account to manage capes.";
+    }
+
+    public static String displayName() {
+        return switch (skinSource) {
+            case Official -> {
+                String name = !resolvedOfficialName.isBlank() ? resolvedOfficialName : selectedOfficialName();
+                yield name.isBlank() ? "Official Skin" : name;
+            }
+            case LocalFile -> loadedSkinFileName == null || loadedSkinFileName.isBlank() || loadedSkinFileName.equals("No skin loaded")
+                ? "Local Skin"
+                : loadedSkinFileName;
+            case Default -> {
+                MinecraftClient client = MinecraftClient.getInstance();
+                yield client == null || client.getSession() == null ? "Default Skin" : client.getSession().getUsername();
+            }
+        };
     }
 
     public static String status() {
@@ -127,18 +186,13 @@ public final class SkinCustomizationManager {
                     loadedSkinFileName = file.getFileName().toString();
                     skinSource = SkinSource.LocalFile;
                     localSkinType = selectedPlayerSkinType();
+                    localSkinTextures = new SkinTextures(localSkinAsset, null, null, localSkinType, false);
                     save();
                     status = "Loaded " + loadedSkinFileName;
                 });
             } catch (IOException exception) {
-                localSkinAsset = null;
-                loadedSkinFile = null;
-                loadedSkinFileName = "No skin loaded";
                 status = "Invalid PNG";
             } catch (RuntimeException exception) {
-                localSkinAsset = null;
-                loadedSkinFile = null;
-                loadedSkinFileName = "No skin loaded";
                 status = exception.getMessage();
             }
         });
@@ -152,9 +206,21 @@ public final class SkinCustomizationManager {
     }
 
     public static void nextOfficialCape() {
-        if (officialCapes.isEmpty()) return;
+        if (!canManageSelectedAccount()) {
+            status = "Cape management requires the active Minecraft session";
+            return;
+        }
+
+        if (officialCapes.isEmpty()) {
+            status = "No owned capes";
+            return;
+        }
+
         officialCapeIndex = (officialCapeIndex + 1) % officialCapes.size();
+        selectedOfficialCapeId = officialCapes.get(officialCapeIndex).id;
+        capeSource = CapeSource.Official;
         save();
+        loadSelectedOfficialCapePreview();
     }
 
     public static void localCapeFile(Path file) {
@@ -208,6 +274,11 @@ public final class SkinCustomizationManager {
     }
 
     public static void refreshAccountProfile() {
+        if (!canManageSelectedAccount()) {
+            status = "Launch with this account to load official capes";
+            return;
+        }
+
         status = "Loading profile";
         loadingTask = CompletableFuture.runAsync(() -> {
             try {
@@ -218,6 +289,8 @@ public final class SkinCustomizationManager {
                 }
 
                 parseCapes(response.body());
+                selectSavedOrActiveCape();
+                loadSelectedOfficialCapePreview();
                 status = "Profile loaded";
             } catch (IOException | InterruptedException exception) {
                 if (exception instanceof InterruptedException) Thread.currentThread().interrupt();
@@ -229,6 +302,11 @@ public final class SkinCustomizationManager {
     }
 
     public static void applySelectedOfficialCape() {
+        if (!canManageSelectedAccount()) {
+            status = "Launch with this account to apply capes";
+            return;
+        }
+
         if (officialCapes.isEmpty()) {
             status = "No owned capes";
             return;
@@ -250,7 +328,9 @@ public final class SkinCustomizationManager {
                 }
 
                 parseCapes(response.body());
+                selectedOfficialCapeId = cape.id;
                 refreshOfficialPreview();
+                loadSelectedOfficialCapePreview();
                 status = "Cape applied";
             } catch (IOException | InterruptedException exception) {
                 if (exception instanceof InterruptedException) Thread.currentThread().interrupt();
@@ -262,6 +342,11 @@ public final class SkinCustomizationManager {
     }
 
     public static void disableOfficialCape() {
+        if (!canManageSelectedAccount()) {
+            status = "Launch with this account to disable capes";
+            return;
+        }
+
         status = "Disabling cape";
         loadingTask = CompletableFuture.runAsync(() -> {
             try {
@@ -275,6 +360,8 @@ public final class SkinCustomizationManager {
                 }
 
                 parseCapes(response.body());
+                selectedOfficialCapeId = "";
+                selectedOfficialCapeAsset = null;
                 refreshOfficialPreview();
                 status = "Cape disabled";
             } catch (IOException | InterruptedException exception) {
@@ -292,14 +379,15 @@ public final class SkinCustomizationManager {
 
         SkinTextures base = null;
         if (skinSource == SkinSource.Official) base = officialTextures;
-        if (base == null && capeSource == CapeSource.LocalFile && localCapeAsset != null) base = currentVanillaTextures();
+        if (base == null && ((capeSource == CapeSource.LocalFile && localCapeAsset != null) || (capeSource == CapeSource.Official && selectedOfficialCapeAsset != null))) base = currentVanillaTextures();
         return applyCapeOverride(base);
     }
 
     public static SkinTextures currentSkinTextures() {
         SkinTextures base;
         if (skinSource == SkinSource.LocalFile && localSkinAsset != null) {
-            base = new SkinTextures(localSkinAsset, null, null, localSkinType, false);
+            if (localSkinTextures == null) localSkinTextures = new SkinTextures(localSkinAsset, null, null, localSkinType, false);
+            base = localSkinTextures;
         } else {
             base = skinSource == SkinSource.Official && officialTextures != null
                 ? officialTextures
@@ -315,34 +403,69 @@ public final class SkinCustomizationManager {
     }
 
     public static void refreshOfficialPreview() {
-        if (loadingTask != null && !loadingTask.isDone()) return;
+        refreshOfficialPreview(false);
+    }
 
-        String name = officialName.isBlank()
-            ? MinecraftClient.getInstance().getSession().getUsername()
-            : officialName;
+    public static void forceRefreshOfficialPreview() {
+        refreshOfficialPreview(true);
+    }
+
+    private static void refreshOfficialPreview(boolean force) {
+        String name = selectedOfficialName();
 
         if (!name.matches("[A-Za-z0-9_]{1,16}")) {
             status = "Bad username";
-            officialTextures = null;
             return;
         }
 
+        String key = name.toLowerCase(Locale.ROOT);
+        if (!force) {
+            SkinTextures cached = OFFICIAL_SKIN_CACHE.get(key);
+            if (cached != null) {
+                officialTextures = cached;
+                resolvedOfficialName = name;
+                refreshKnownAccounts();
+                skinSource = SkinSource.Official;
+                status = "Loaded " + name;
+                save();
+                return;
+            }
+
+            if (loadingTask != null && !loadingTask.isDone() && key.equals(loadingOfficialName)) return;
+        }
+
         status = "Loading " + name;
+        loadingOfficialName = key;
         loadingTask = CompletableFuture
             .supplyAsync(() -> resolveProfile(name))
             .thenCompose(profile -> MinecraftClient.getInstance().getSkinProvider().fetchSkinTextures(profile))
             .thenAccept(optional -> {
-                officialTextures = optional.orElse(null);
-                status = officialTextures == null ? "No skin" : "Loaded " + name;
+                if (optional.isEmpty()) {
+                    status = "No skin for " + name;
+                    return;
+                }
+
+                SkinTextures textures = optional.get();
+                OFFICIAL_SKIN_CACHE.put(key, textures);
+                officialTextures = textures;
+                resolvedOfficialName = name;
+                skinSource = SkinSource.Official;
+                save();
+                status = "Loaded " + name;
             })
             .exceptionally(exception -> {
-                officialTextures = null;
-                status = "Failed";
+                status = "Failed to load " + name;
                 return null;
             });
     }
 
     public static void load() {
+        if (loaded) {
+            restoreConfiguredSkin();
+            return;
+        }
+
+        loaded = true;
         Path config = directory().resolve("customization.txt");
         if (!Files.exists(config)) {
             refreshAccountProfile();
@@ -359,6 +482,8 @@ public final class SkinCustomizationManager {
                     case "skin-model" -> skinModel = SkinModel.from(parts[1]);
                     case "cape-source" -> capeSource = CapeSource.from(parts[1]);
                     case "official-name" -> officialName = parts[1].trim();
+                    case "resolved-official-name" -> resolvedOfficialName = parts[1].trim();
+                    case "selected-official-cape" -> selectedOfficialCapeId = parts[1].trim();
                     case "loaded-skin" -> loadedSkinFile = parts[1].isBlank() ? null : Path.of(parts[1]);
                     case "loaded-skin-name" -> loadedSkinFileName = parts[1].isBlank() ? "No skin loaded" : parts[1];
                     case "official-cape-index" -> officialCapeIndex = parseInt(parts[1]);
@@ -370,10 +495,7 @@ public final class SkinCustomizationManager {
         } catch (IOException ignored) {
         }
 
-        if (skinSource == SkinSource.Official) refreshOfficialPreview();
-        if (skinSource == SkinSource.LocalFile && loadedSkinFile != null) loadSkinFile(loadedSkinFile);
-        if (capeSource == CapeSource.Official) refreshAccountProfile();
-        if (capeSource == CapeSource.LocalFile) loadLocalCape();
+        restoreConfiguredSkin();
     }
 
     public static void save() {
@@ -387,6 +509,8 @@ public final class SkinCustomizationManager {
                     + "skin-model=" + skinModel.id + "\n"
                     + "cape-source=" + capeSource.id + "\n"
                     + "official-name=" + officialName + "\n"
+                    + "resolved-official-name=" + resolvedOfficialName + "\n"
+                    + "selected-official-cape=" + selectedOfficialCapeId + "\n"
                     + "loaded-skin=" + (loadedSkinFile == null ? "" : loadedSkinFile) + "\n"
                     + "loaded-skin-name=" + loadedSkinFileName + "\n"
                     + "official-cape-index=" + officialCapeIndex + "\n"
@@ -403,17 +527,145 @@ public final class SkinCustomizationManager {
         return supplier.get();
     }
 
+    private static void restoreConfiguredSkin() {
+        refreshKnownAccounts();
+        if (skinSource == SkinSource.Official) refreshOfficialPreview();
+        if (skinSource == SkinSource.LocalFile && loadedSkinFile != null && localSkinAsset == null) loadSkinFile(loadedSkinFile);
+        if (capeSource == CapeSource.Official) refreshAccountProfile();
+        if (capeSource == CapeSource.LocalFile) loadLocalCape();
+    }
+
+    private static String selectedOfficialName() {
+        if (!officialName.isBlank()) return officialName.trim();
+        return sessionUsername();
+    }
+
     private static SkinTextures applyCapeOverride(SkinTextures base) {
         if (base == null) return null;
-        if (capeSource != CapeSource.LocalFile || localCapeAsset == null) return base;
+        AssetInfo.TextureAssetInfo capeAsset = null;
+        if (capeSource == CapeSource.LocalFile) capeAsset = localCapeAsset;
+        if (capeSource == CapeSource.Official) capeAsset = selectedOfficialCapeAsset;
+        if (capeAsset == null) return base;
 
         SkinTextures.SkinOverride override = SkinTextures.SkinOverride.create(
             Optional.empty(),
-            Optional.of(localCapeAsset),
-            Optional.of(localCapeAsset),
+            Optional.of(capeAsset),
+            Optional.of(capeAsset),
             Optional.empty()
         );
         return base.withOverride(override);
+    }
+
+    private static void refreshKnownAccounts() {
+        KNOWN_ACCOUNTS.clear();
+        addKnownAccount(sessionUsername());
+        addKnownAccount(officialName);
+        addKnownAccount(resolvedOfficialName);
+    }
+
+    private static void addKnownAccount(String name) {
+        if (name == null || name.isBlank()) return;
+        for (String known : KNOWN_ACCOUNTS) {
+            if (known.equalsIgnoreCase(name)) return;
+        }
+        KNOWN_ACCOUNTS.add(name);
+    }
+
+    private static boolean canManageSelectedAccount() {
+        String session = sessionUsername();
+        String selected = selectedOfficialName();
+        return !session.isBlank() && !selected.isBlank() && session.equalsIgnoreCase(selected);
+    }
+
+    private static String sessionUsername() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        return client == null || client.getSession() == null ? "" : client.getSession().getUsername();
+    }
+
+    private static void selectSavedOrActiveCape() {
+        if (officialCapes.isEmpty()) {
+            officialCapeIndex = 0;
+            selectedOfficialCapeAsset = null;
+            return;
+        }
+
+        int selectedIndex = -1;
+        if (!selectedOfficialCapeId.isBlank()) {
+            for (int i = 0; i < officialCapes.size(); i++) {
+                if (officialCapes.get(i).id.equals(selectedOfficialCapeId)) {
+                    selectedIndex = i;
+                    break;
+                }
+            }
+        }
+
+        if (selectedIndex < 0) {
+            for (int i = 0; i < officialCapes.size(); i++) {
+                if (officialCapes.get(i).active) {
+                    selectedIndex = i;
+                    break;
+                }
+            }
+        }
+
+        officialCapeIndex = selectedIndex < 0 ? 0 : selectedIndex;
+        selectedOfficialCapeId = officialCapes.get(officialCapeIndex).id;
+    }
+
+    private static void loadSelectedOfficialCapePreview() {
+        if (officialCapes.isEmpty()) return;
+        CapeInfo cape = officialCapes.get(Math.max(0, Math.min(officialCapeIndex, officialCapes.size() - 1)));
+        AssetInfo.TextureAssetInfo cached = OFFICIAL_CAPE_CACHE.get(cape.id);
+        if (cached != null) {
+            selectedOfficialCapeAsset = cached;
+            status = "Cape preview: " + cape.alias;
+            return;
+        }
+
+        status = "Loading cape preview";
+        CompletableFuture.runAsync(() -> {
+            try {
+                HttpRequest request = HttpRequest.newBuilder(URI.create(cape.url)).GET().build();
+                HttpResponse<InputStream> response = HTTP.send(request, HttpResponse.BodyHandlers.ofInputStream());
+                if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                    throw new IllegalStateException("Cape returned " + response.statusCode());
+                }
+
+                NativeImage image;
+                try (InputStream stream = response.body()) {
+                    image = NativeImage.read(stream);
+                }
+
+                MinecraftClient client = MinecraftClient.getInstance();
+                client.execute(() -> {
+                    Identifier id = Identifier.of("eclipse", "official_cape_" + sanitizeIdentifier(cape.id));
+                    NativeImageBackedTexture texture = new NativeImageBackedTexture(() -> "Eclipse official cape", image);
+                    client.getTextureManager().destroyTexture(id);
+                    client.getTextureManager().registerTexture(id, texture);
+                    AssetInfo.TextureAssetInfo asset = new AssetInfo.TextureAssetInfo(id);
+                    OFFICIAL_CAPE_CACHE.put(cape.id, asset);
+                    selectedOfficialCapeAsset = asset;
+                    capeSource = CapeSource.Official;
+                    save();
+                    status = "Cape preview: " + cape.alias;
+                });
+            } catch (IOException | InterruptedException exception) {
+                if (exception instanceof InterruptedException) Thread.currentThread().interrupt();
+                status = "Cape preview failed";
+            } catch (RuntimeException exception) {
+                status = exception.getMessage();
+            }
+        });
+    }
+
+    private static String sanitizeIdentifier(String value) {
+        String lower = value.toLowerCase(Locale.ROOT);
+        StringBuilder builder = new StringBuilder(lower.length());
+        for (int i = 0; i < lower.length(); i++) {
+            char c = lower.charAt(i);
+            builder.append((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.' ? c : '_');
+        }
+        return builder.toString();
     }
 
     private static void loadLocalCape() {

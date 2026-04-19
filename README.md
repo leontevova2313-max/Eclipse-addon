@@ -4,58 +4,111 @@
   <img src="docs/eclipse_logo.png" alt="Eclipse" width="720">
 </p>
 
-Eclipse - клиентский addon для Meteor Client под Minecraft `1.21.11`.
+Eclipse Addon is a client-side Meteor Client addon for Minecraft `1.21.11`.
+This repository is prepared as the first clean public release of the project.
 
-Главная актуальная сводка по проекту вынесена в одну страницу:
+The goal of this release is to make the project understandable: what is
+included, what is stable enough to use, what is experimental, and what still
+needs careful testing.
 
-- [Beta 2 Overview](docs/BETA_2.md)
-- [English README](README_EN.md)
+## Status
 
-## Что это
+- Release line: first clean release / beta core release.
+- Current project version: `0.2.0-beta.2`.
+- Minecraft: `1.21.11`.
+- Fabric Loader: `0.18.2`.
+- Yarn mappings: `1.21.11+build.3`.
+- Meteor Client: `1.21.11-SNAPSHOT`.
 
-Eclipse собирает в одном addon:
+## What Eclipse Adds
 
-- визуальные улучшения главного меню и интерфейса;
-- диагностические инструменты для анализа сервера;
-- movement и packet utility-модули;
-- Litematica printer;
-- окно предпросмотра и загрузки скина.
+- Custom Eclipse title screen, menu background, logo layout, skin preview, and notifier.
+- Skin preview and official account skin/cape tools for the active Minecraft session.
+- Chat quality fixes for links and quick private replies without breaking signed chat.
+- Middle-click target inspection with player friend add notifications and entity preview.
+- Movement and packet utility modules for controlled testing.
+- Litematica printer with range, retry, skip, inventory, and placement verification logic.
+- Server intelligence helpers for chunks, sounds, coordinates, and ore-related observations.
 
-## Текущее состояние
+## Release Modules
 
-- текущая версия репозитория: `0.2.0-beta.2`;
-- проект находится в beta-стадии;
-- основные рабочие области описаны на странице [Beta 2 Overview](docs/BETA_2.md);
-- часть модулей ориентирована на конкретный серверный профиль и может требовать подстройки.
+Stable / release-ready:
 
-## Быстрый старт
+- `eclipse-visuals`
+- `chat-fix`
+- `middle-click-info`
+- `eclipse-camera`
+- `eclipse-name-guard`
 
-1. Установи Fabric Loader для Minecraft `1.21.11`.
-2. Установи Meteor Client для той же версии игры.
-3. Собери или возьми готовый jar Eclipse.
-4. Помести jar в папку `mods` вместе с Meteor Client.
-5. Запусти игру и открой категорию `Eclipse` в списке модулей Meteor.
+Beta / experimental:
 
-## Сборка
+- `litematica-printer`
+- `eclipse-elytra`
+- `eclipse-velocity`
+- `eclipse-move`
+- `eclipse-flight`
+- `eclipse-no-slow`
+- `pearl-phase`
+- `ping-spoof`
+- `eclipse-server-intel`
+- `external-cheat-trace`
+
+Internal / not registered in this release:
+
+- `eclipse-anti-crash`
+- `eclipse-custom-packets`
+- `server-auto-setup`
+- `server-diagnostics`
+
+These internal modules still exist in source form, but they are not added to the
+Meteor module list in the clean release runtime.
+
+## Installation
+
+See [docs/INSTALL.md](docs/INSTALL.md).
+
+Short version:
+
+1. Install Fabric Loader for Minecraft `1.21.11`.
+2. Install Meteor Client for Minecraft `1.21.11`.
+3. Put the Eclipse jar in your Minecraft `mods` folder.
+4. Start the game.
+5. Open Meteor GUI and find the `Eclipse` category.
+
+## Documentation
+
+- [Release notes](RELEASE_NOTES.md)
+- [Changelog](CHANGELOG.md)
+- [Installation](docs/INSTALL.md)
+- [Modules](docs/MODULES.md)
+- [Settings](docs/SETTINGS.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [FAQ](docs/FAQ.md)
+- [Beta 2 overview](docs/BETA_2.md)
+
+## Building
 
 ```powershell
 .\gradlew.bat build
 ```
 
-Собранный jar появится в:
+The jar is created in:
 
 ```text
 build/libs/
 ```
 
-## Основные пути в проекте
+## Important Notes
 
-- `src/main/java/eclipse/modules/` - модули Eclipse;
-- `src/main/java/eclipse/gui/` - экраны, layout и GUI helper-классы;
-- `src/main/java/com/eclipse/mixin/` - mixin-интеграция в клиент;
-- `src/main/resources/assets/eclipse/` - текстуры и локализация;
-- `src/main/resources/fabric.mod.json` - метаданные Fabric-мода.
+- Some movement and packet modules depend heavily on server rules, ping, TPS,
+  anticheat behavior, and player inventory state.
+- Official skin/cape actions use the active Minecraft session only. The addon
+  does not fake authentication and does not spoof account identity.
+- Litematica is optional for launching the addon, but required for
+  `litematica-printer`.
+- This addon does not include Minecraft, Meteor Client, Fabric Loader, or
+  Litematica.
 
-## Лицензия
+## License
 
-Проект распространяется по лицензии `CC0-1.0`, см. [LICENSE](LICENSE).
+The project uses the `CC0-1.0` license. See [LICENSE](LICENSE).

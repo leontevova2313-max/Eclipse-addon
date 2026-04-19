@@ -13,13 +13,14 @@ import net.minecraft.network.packet.c2s.play.ChatMessageC2SPacket;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
 import net.minecraft.text.MutableText;
+import net.minecraft.text.PlainTextContent;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
+import net.minecraft.text.TextContent;
 import net.minecraft.util.Formatting;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -107,20 +108,38 @@ public class ChatFix extends Module {
         sendingPrefixed = false;
     }
 
-    public static Text fixLinks(Text message) {
+    public static Text fixLinks(Text message, boolean signed) {
         ChatFix module = Modules.get().get(ChatFix.class);
         if (module == null || !module.isActive()) return message;
         if (!module.clickableLinks.get() && !module.clickNames.get()) return message;
+        if (signed) return message;
 
-        MutableText fixed = Text.empty().setStyle(message.getStyle());
         boolean[] changed = {false};
-
-        message.visit((style, value) -> {
-            appendFixed(fixed, value, style, module, changed);
-            return Optional.empty();
-        }, Style.EMPTY);
+        MutableText fixed = copyAndDecorate(message, module, changed);
 
         return changed[0] ? fixed : message;
+    }
+
+    private static MutableText copyAndDecorate(Text text, ChatFix module, boolean[] changed) {
+        MutableText copy = copyContent(text, module, changed);
+        for (Text sibling : text.getSiblings()) {
+            copy.append(copyAndDecorate(sibling, module, changed));
+        }
+
+        return copy;
+    }
+
+    private static MutableText copyContent(Text text, ChatFix module, boolean[] changed) {
+        TextContent content = text.getContent();
+        Style style = text.getStyle();
+
+        if (content instanceof PlainTextContent.Literal literal) {
+            MutableText output = Text.empty().setStyle(style);
+            appendFixed(output, literal.string(), style, module, changed);
+            return output;
+        }
+
+        return text.copyContentOnly().setStyle(style);
     }
 
     private static void appendFixed(MutableText output, String value, Style style, ChatFix module, boolean[] changed) {
@@ -138,14 +157,9 @@ public class ChatFix extends Module {
             }
 
             String name = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
-            String command = module.replyCommand.get().replace("{name}", name);
-            Style nameStyle = style
-                .withClickEvent(new ClickEvent.SuggestCommand(command))
-                .withHoverEvent(new HoverEvent.ShowText(Text.literal("Reply to " + name)))
-                .withColor(Formatting.LIGHT_PURPLE)
-                .withBold(true);
+            Style nameStyle = decorateNameStyle(style, name, module);
             output.append(Text.literal(name).setStyle(nameStyle));
-            changed[0] = true;
+            if (nameStyle != style) changed[0] = true;
             index = matcher.end();
         }
 
@@ -170,14 +184,10 @@ public class ChatFix extends Module {
             if (uri == null) {
                 output.append(Text.literal(matcher.group(1)).setStyle(style));
             } else {
-                Style linkStyle = style
-                    .withClickEvent(new ClickEvent.OpenUrl(uri))
-                    .withHoverEvent(new HoverEvent.ShowText(Text.literal(uri.toString())))
-                    .withColor(Formatting.AQUA)
-                    .withUnderline(underline);
+                Style linkStyle = decorateLinkStyle(style, uri, underline);
                 output.append(Text.literal(rawUrl).setStyle(linkStyle));
                 if (!suffix.isEmpty()) output.append(Text.literal(suffix).setStyle(style));
-                changed[0] = true;
+                if (linkStyle != style) changed[0] = true;
             }
 
             index = matcher.end();
@@ -206,5 +216,36 @@ public class ChatFix extends Module {
         } catch (URISyntaxException ignored) {
             return null;
         }
+    }
+
+    private static Style decorateNameStyle(Style style, String name, ChatFix module) {
+        if (style.getClickEvent() != null) return style;
+
+        String command = module.replyCommand.get().replace("{name}", name);
+        Style updated = style
+            .withClickEvent(new ClickEvent.SuggestCommand(command))
+            .withColor(Formatting.LIGHT_PURPLE)
+            .withBold(true);
+
+        if (updated.getHoverEvent() == null) {
+            updated = updated.withHoverEvent(new HoverEvent.ShowText(Text.literal("Reply to " + name)));
+        }
+
+        return updated;
+    }
+
+    private static Style decorateLinkStyle(Style style, URI uri, boolean underline) {
+        if (style.getClickEvent() != null) return style;
+
+        Style updated = style
+            .withClickEvent(new ClickEvent.OpenUrl(uri))
+            .withColor(Formatting.AQUA)
+            .withUnderline(underline);
+
+        if (updated.getHoverEvent() == null) {
+            updated = updated.withHoverEvent(new HoverEvent.ShowText(Text.literal(uri.toString())));
+        }
+
+        return updated;
     }
 }

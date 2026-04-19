@@ -6,6 +6,7 @@ import eclipse.gui.TitleLogoLayout;
 import eclipse.skins.SkinCustomizationManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.LogoDrawer;
+import net.minecraft.client.gui.screen.SplashTextRenderer;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.DrawContext;
@@ -16,6 +17,7 @@ import net.minecraft.client.gui.widget.PlayerSkinWidget;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -43,6 +45,9 @@ public abstract class TitleScreenMixin {
 
     @Unique
     private static final Identifier LOGO = Identifier.of("eclipse", "textures/gui/title/eclipse_logo.png");
+
+    @Shadow
+    private SplashTextRenderer splashText;
 
     @Unique
     private PlayerSkinWidget eclipse$skinWidget;
@@ -74,6 +79,8 @@ public abstract class TitleScreenMixin {
     private void eclipse$addCustomizationButton(CallbackInfo ci) {
         TitleScreen self = (TitleScreen) (Object) this;
         MinecraftClient client = MinecraftClient.getInstance();
+        SkinCustomizationManager.load();
+        if (EclipseConfig.titleLogo()) splashText = null;
         int width = client.getWindow().getScaledWidth();
         int height = client.getWindow().getScaledHeight();
 
@@ -93,6 +100,11 @@ public abstract class TitleScreenMixin {
         ((ScreenAccessor) self).eclipse$addDrawableChild(ButtonWidget.builder(Text.translatable("eclipse.menu.customization"), button ->
             client.setScreen(new EclipseCustomizationScreen(self))
         ).dimensions(modelX - 4, modelY + modelH + 8, modelW + 8, 20).build());
+    }
+
+    @Inject(method = "render", at = @At("HEAD"))
+    private void eclipse$disableVanillaSplash(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        if (EclipseConfig.titleLogo()) splashText = null;
     }
 
     @Inject(method = "renderBackground", at = @At("HEAD"), cancellable = true)
@@ -193,6 +205,7 @@ public abstract class TitleScreenMixin {
     @Inject(method = "render", at = @At("TAIL"))
     private void eclipse$renderLogo(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!EclipseConfig.titleLogo()) return;
+        eclipse$renderSkinDisplayName(context);
 
         TitleLogoLayout.Bounds layout = TitleLogoLayout.calculate(
             context.getScaledWindowWidth(),
@@ -212,6 +225,21 @@ public abstract class TitleScreenMixin {
             EclipseConfig.withAlpha(0x00FFFFFF, eclipse$logoAlpha())
         );
 
+    }
+
+    @Unique
+    private void eclipse$renderSkinDisplayName(DrawContext context) {
+        if (eclipse$skinWidget == null) return;
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.textRenderer == null) return;
+
+        String name = client.textRenderer.trimToWidth(SkinCustomizationManager.displayName(), Math.max(80, eclipse$skinWidget.getWidth() + 48));
+        int textWidth = client.textRenderer.getWidth(name);
+        int centerX = eclipse$skinWidget.getX() + eclipse$skinWidget.getWidth() / 2;
+        centerX = Math.max(textWidth / 2 + 6, Math.min(context.getScaledWindowWidth() - textWidth / 2 - 6, centerX));
+        int y = Math.max(8, eclipse$skinWidget.getY() - 14);
+        context.drawCenteredTextWithShadow(client.textRenderer, name, centerX, y, 0xFFEAF7F2);
     }
 
     @Unique

@@ -3,6 +3,7 @@ package eclipse.modules;
 import eclipse.Eclipse;
 import eclipse.EclipseConfig;
 import eclipse.gui.EclipseDynamicTextures;
+import eclipse.gui.EclipseToastOverlay;
 import meteordevelopment.meteorclient.events.render.Render2DEvent;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.ColorSetting;
@@ -27,6 +28,7 @@ public class EclipseVisuals extends Module {
     private final SettingGroup sgTheme = settings.createGroup("Colors & Theme");
     private final SettingGroup sgCrosshair = settings.createGroup("Crosshair");
     private final SettingGroup sgAdvancedCrosshair = settings.createGroup("Advanced Crosshair");
+    private final SettingGroup sgNotifier = settings.createGroup("Notifier");
     private final SettingGroup sgDebug = settings.createGroup("Debug / Developer");
 
     private final Setting<Boolean> screenBackgrounds = sgGeneral.add(new BoolSetting.Builder()
@@ -505,6 +507,77 @@ public class EclipseVisuals extends Module {
         .build()
     );
 
+    private final Setting<Boolean> useCustomNotifier = sgNotifier.add(new BoolSetting.Builder()
+        .name("use-custom-notifier")
+        .description("Replaces Meteor module toggle chat feedback with Eclipse overlay notifications.")
+        .defaultValue(true)
+        .onChanged(value -> syncNotifier())
+        .build()
+    );
+
+    private final Setting<EclipseToastOverlay.NotificationPosition> notifierPosition = sgNotifier.add(new EnumSetting.Builder<EclipseToastOverlay.NotificationPosition>()
+        .name("position")
+        .description("Screen corner used by Eclipse notifications.")
+        .defaultValue(EclipseToastOverlay.NotificationPosition.TopRight)
+        .onChanged(value -> syncNotifier())
+        .build()
+    );
+
+    private final Setting<Double> notifierAnimationSpeed = sgNotifier.add(new DoubleSetting.Builder()
+        .name("animation-speed")
+        .description("Animation speed multiplier for Eclipse notifications.")
+        .defaultValue(1.0)
+        .range(0.25, 3.0)
+        .sliderRange(0.5, 2.0)
+        .decimalPlaces(2)
+        .onChanged(value -> syncNotifier())
+        .build()
+    );
+
+    private final Setting<Integer> notifierMax = sgNotifier.add(new IntSetting.Builder()
+        .name("max-notifications")
+        .description("Maximum visible notifications before older ones are dropped.")
+        .defaultValue(4)
+        .range(1, 8)
+        .sliderRange(1, 6)
+        .onChanged(value -> syncNotifier())
+        .build()
+    );
+
+    private final Setting<Integer> notifierDuration = sgNotifier.add(new IntSetting.Builder()
+        .name("duration")
+        .description("How long each notification stays visible in milliseconds.")
+        .defaultValue(3000)
+        .range(700, 9000)
+        .sliderRange(1200, 6000)
+        .onChanged(value -> syncNotifier())
+        .build()
+    );
+
+    private final Setting<SettingColor> notifierAccent = sgNotifier.add(new ColorSetting.Builder()
+        .name("accent")
+        .description("Default accent color for Eclipse notifications.")
+        .defaultValue(new SettingColor(71, 242, 163, 255))
+        .onChanged(value -> syncNotifier())
+        .build()
+    );
+
+    private final Setting<SettingColor> notifierBackground = sgNotifier.add(new ColorSetting.Builder()
+        .name("background")
+        .description("Panel background color for Eclipse notifications.")
+        .defaultValue(new SettingColor(16, 18, 22, 230))
+        .onChanged(value -> syncNotifier())
+        .build()
+    );
+
+    private final Setting<EclipseToastOverlay.NotificationStyle> notifierStyle = sgNotifier.add(new EnumSetting.Builder<EclipseToastOverlay.NotificationStyle>()
+        .name("style")
+        .description("Notification panel style.")
+        .defaultValue(EclipseToastOverlay.NotificationStyle.Eclipse)
+        .onChanged(value -> syncNotifier())
+        .build()
+    );
+
     private final Setting<Boolean> debugVisualState = sgDebug.add(new BoolSetting.Builder()
         .name("debug-visual-state")
         .description("Prints one compact sync message when toggled.")
@@ -582,6 +655,20 @@ public class EclipseVisuals extends Module {
         EclipseConfig.crosshairRecoil(recoilSimulation.get());
         EclipseConfig.hideCrosshairWhenHoldingItem(hideWhenHoldingItem.get());
         EclipseConfig.crosshairCombatOnly(combatOnly.get());
+        syncNotifier();
+    }
+
+    private void syncNotifier() {
+        EclipseToastOverlay.configure(
+            useCustomNotifier.get(),
+            notifierPosition.get(),
+            notifierAnimationSpeed.get(),
+            notifierMax.get(),
+            notifierDuration.get(),
+            notifierAccent.get().getPacked(),
+            notifierBackground.get().getPacked(),
+            notifierStyle.get()
+        );
     }
 
     private void reloadCustomBackground() {

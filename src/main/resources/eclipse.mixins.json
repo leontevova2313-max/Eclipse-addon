@@ -10,11 +10,11 @@
     "GameRendererMixin",
     "InGameHudMixin",
     "InputAccessor",
+    "ModuleToggleMixin",
     "PlayerSkinWidgetAccessor",
     "PlayerListEntryMixin",
     "ScreenAccessor",
     "ScreenBackgroundMixin",
-    "ScreenOverlayMixin",
     "TitleScreenMixin"
   ],
   "injectors": {

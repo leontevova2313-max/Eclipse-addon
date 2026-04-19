@@ -7,6 +7,7 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.PlayerSkinWidget;
+import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
 
@@ -25,12 +26,16 @@ public class EclipseCustomizationScreen extends Screen {
 
     private final Screen parent;
     private PlayerSkinWidget skinWidget;
+    private TextFieldWidget officialNameField;
     private int modelX;
     private int modelY;
     private int modelW;
     private int modelH;
+    private int infoY;
     private ButtonWidget skinModelButton;
     private ButtonWidget applySkinButton;
+    private ButtonWidget accountButton;
+    private ButtonWidget capeButton;
     private float trackedXRotation = -5.0F;
     private float trackedYRotation = 30.0F;
 
@@ -53,6 +58,7 @@ public class EclipseCustomizationScreen extends Screen {
         boolean twoColumns = width >= 520;
         int controlsX = twoColumns ? center + 28 : center - BUTTON_WIDTH / 2;
         int controlsY = twoColumns ? contentTop + 30 : contentTop + modelH + 28;
+        infoY = twoColumns ? Math.min(height - 72, controlsY + row(9) + 6) : Math.min(height - 70, controlsY + row(9) + 8);
 
         modelX = twoColumns ? center - 176 : center - modelW / 2;
         modelY = contentTop + Math.max(0, (twoColumns ? contentHeight - modelH : 0) / 2);
@@ -64,22 +70,47 @@ public class EclipseCustomizationScreen extends Screen {
             addDrawableChild(skinWidget);
         }
 
+        officialNameField = new TextFieldWidget(textRenderer, controlsX, controlsY, BUTTON_WIDTH, BUTTON_HEIGHT, Text.translatable("eclipse.customization.official_name"));
+        officialNameField.setMaxLength(16);
+        officialNameField.setPlaceholder(Text.translatable("eclipse.customization.official_name.placeholder"));
+        officialNameField.setText(SkinCustomizationManager.officialName());
+        officialNameField.setChangedListener(SkinCustomizationManager::officialName);
+        addDrawableChild(officialNameField);
+
+        accountButton = addDrawableChild(ButtonWidget.builder(Text.literal(SkinCustomizationManager.accountButtonText()), button -> {
+            SkinCustomizationManager.nextAccount();
+            button.setMessage(Text.literal(SkinCustomizationManager.accountButtonText()));
+        }).dimensions(controlsX, controlsY + row(1), BUTTON_WIDTH, BUTTON_HEIGHT).build());
+
         skinModelButton = addDrawableChild(ButtonWidget.builder(skinModelText(), button -> {
             SkinCustomizationManager.skinModel(SkinCustomizationManager.skinModel().next());
             button.setMessage(skinModelText());
-        }).dimensions(controlsX, controlsY, BUTTON_WIDTH, BUTTON_HEIGHT).build());
+        }).dimensions(controlsX, controlsY + row(2), BUTTON_WIDTH, BUTTON_HEIGHT).build());
 
         addDrawableChild(ButtonWidget.builder(Text.translatable("eclipse.customization.load_skin_file"), button ->
             chooseFile(file -> SkinCustomizationManager.loadSkinFile(file.toPath()))
-        ).dimensions(controlsX, controlsY + row(1), BUTTON_WIDTH, BUTTON_HEIGHT).build());
+        ).dimensions(controlsX, controlsY + row(3), BUTTON_WIDTH, BUTTON_HEIGHT).build());
 
         applySkinButton = addDrawableChild(ButtonWidget.builder(Text.translatable("eclipse.customization.apply_skin"), button ->
             SkinCustomizationManager.applyLoadedOfficialSkin()
-        ).dimensions(controlsX, controlsY + row(2), BUTTON_WIDTH, BUTTON_HEIGHT).build());
+        ).dimensions(controlsX, controlsY + row(4), BUTTON_WIDTH, BUTTON_HEIGHT).build());
 
         addDrawableChild(ButtonWidget.builder(Text.translatable("eclipse.customization.refresh_skin"), button ->
-            SkinCustomizationManager.refreshOfficialPreview()
-        ).dimensions(controlsX, controlsY + row(3), BUTTON_WIDTH, BUTTON_HEIGHT).build());
+            SkinCustomizationManager.forceRefreshOfficialPreview()
+        ).dimensions(controlsX, controlsY + row(5), BUTTON_WIDTH, BUTTON_HEIGHT).build());
+
+        addDrawableChild(ButtonWidget.builder(Text.translatable("eclipse.customization.load_profile"), button ->
+            SkinCustomizationManager.refreshAccountProfile()
+        ).dimensions(controlsX, controlsY + row(6), BUTTON_WIDTH, BUTTON_HEIGHT).build());
+
+        capeButton = addDrawableChild(ButtonWidget.builder(capeText(), button -> {
+            SkinCustomizationManager.nextOfficialCape();
+            button.setMessage(capeText());
+        }).dimensions(controlsX, controlsY + row(7), BUTTON_WIDTH, BUTTON_HEIGHT).build());
+
+        addDrawableChild(ButtonWidget.builder(Text.translatable("eclipse.customization.apply_cape"), button ->
+            SkinCustomizationManager.applySelectedOfficialCape()
+        ).dimensions(controlsX, controlsY + row(8), BUTTON_WIDTH, BUTTON_HEIGHT).build());
 
         addDrawableChild(ButtonWidget.builder(Text.translatable("eclipse.customization.done"), button -> close())
             .dimensions(center - 100, height - 32, 200, BUTTON_HEIGHT)
@@ -93,6 +124,7 @@ public class EclipseCustomizationScreen extends Screen {
 
         int previewCenterX = modelX + modelW / 2;
         int previewCenterY = modelY + modelH / 2;
+        drawPreviewName(context, previewCenterX, Math.max(28, modelY - 14));
         if (client != null && client.player != null) {
             float targetMouseX = previewCenterX + MathHelper.clamp(mouseX - previewCenterX, -modelW * 0.55F, modelW * 0.55F);
             float targetMouseY = previewCenterY + MathHelper.clamp(mouseY - previewCenterY, -modelH * 0.42F, modelH * 0.42F);
@@ -102,10 +134,11 @@ public class EclipseCustomizationScreen extends Screen {
         }
 
         if (skinModelButton != null) skinModelButton.setMessage(skinModelText());
+        if (accountButton != null) accountButton.setMessage(Text.literal(SkinCustomizationManager.accountButtonText()));
+        if (capeButton != null) capeButton.setMessage(capeText());
         if (applySkinButton != null) applySkinButton.active = SkinCustomizationManager.hasLoadedSkinFile();
 
         int infoX = width >= 520 ? width / 2 + 28 : width / 2;
-        int infoY = width >= 520 ? 178 : Math.min(height - 70, modelY + modelH + 150);
         drawInfo(context, infoX, infoY, width >= 520);
         super.render(context, mouseX, mouseY, delta);
     }
@@ -131,6 +164,10 @@ public class EclipseCustomizationScreen extends Screen {
             case Classic -> "eclipse.skin_model.classic";
             case Slim -> "eclipse.skin_model.slim";
         }));
+    }
+
+    private Text capeText() {
+        return Text.translatable("eclipse.customization.official_cape", SkinCustomizationManager.selectedCapeName());
     }
 
     private void updateSkinWidgetTracking(int mouseX, int mouseY, float delta) {
@@ -164,6 +201,12 @@ public class EclipseCustomizationScreen extends Screen {
                 context.drawCenteredTextWithShadow(textRenderer, lines[i], x, lineY, 0xFFB8C0CC);
             }
         }
+    }
+
+    private void drawPreviewName(DrawContext context, int centerX, int y) {
+        String name = textRenderer.trimToWidth(SkinCustomizationManager.displayName(), Math.max(80, modelW + 42));
+        int clampedCenter = MathHelper.clamp(centerX, textRenderer.getWidth(name) / 2 + 6, width - textRenderer.getWidth(name) / 2 - 6);
+        context.drawCenteredTextWithShadow(textRenderer, name, clampedCenter, y, 0xFFEAF7F2);
     }
 
     private int row(int index) {
