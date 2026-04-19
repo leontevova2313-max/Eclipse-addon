@@ -8,6 +8,10 @@ Eclipse is a client-side Meteor Client addon for Minecraft 1.21.11.
 It focuses on server diagnostics, movement tuning, Eclipse-themed UI visuals,
 Litematica schematic printing, and small quality-of-life tools.
 
+For the current consolidated project state, use:
+
+- [Beta 2 Overview](docs/BETA_2.md)
+
 This is a Fabric client mod and must be loaded together with Meteor Client.
 Use it only on servers where this kind of client-side tooling is allowed.
 
