@@ -47,7 +47,7 @@ public class EclipseModule extends WPressable {
 
     @Override
     protected void onRender(GuiRenderer renderer, double mouseX, double mouseY, double delta) {
-        EclipseModernTheme theme = (EclipseModernTheme) theme();
+        EclipseModernTheme theme = (EclipseModernTheme) this.theme;
         double pad = pad();
 
         hoverProgress += delta * 7 * ((module.isActive() || mouseOver) ? 1 : -1);

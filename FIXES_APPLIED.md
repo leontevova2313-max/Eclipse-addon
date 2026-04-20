@@ -34,4 +34,3 @@
 - I did not add obfuscation or anti-extraction tricks. The new structure is internal API cleanup, not concealment.
 
 ## Build note
-- I could not rerun Gradle in this container because the wrapper tries to fetch `gradle-9.2.0-bin.zip` from `services.gradle.org`, and outbound network is blocked here.

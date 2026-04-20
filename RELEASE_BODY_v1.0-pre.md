@@ -12,7 +12,6 @@
 - безопаснее snapshot/export в `DiagnosticStore`
 - меньше лишних аллокаций в части `LitematicaPrinter`
 - GitHub templates, docs и release-файлы
-- handoff-файлы для Codex
 
 ### Что проверить локально
 - `./gradlew build`

@@ -17,9 +17,6 @@
 - issue templates и pull request template
 - release checklist и technical overview
 - preview-скриншот современного GUI
-- `AGENTS.md` для Codex / агентов
-- `CODEX_HANDOFF.md`
-- `CODEX_UPDATE_PROMPT.md`
 - `RELEASE_BODY_v1.0-pre.md`
 - `docs/releases/v1.0-pre.md`
 
@@ -27,7 +24,6 @@
 - версия проекта переведена на `1.0-pre`
 - README переписан под реальный репозиторий `Eclipse-addon`
 - release-документация обновлена под первый pre-release
-- структура репозитория упрощена для дальнейших обновлений через Codex
 
 ### Fixed
 - реально подключена и применяется тема `Eclipse Modern`

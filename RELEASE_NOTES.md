@@ -6,7 +6,6 @@
 - интегрированной темой **Eclipse Modern**
 - фиксами по GUI и cleanup
 - подготовкой репозитория под GitHub
-- документами для дальнейшего сопровождения и обновлений через Codex
 
 ### Основное
 - UI стал компактнее, строже и чище
@@ -33,7 +32,6 @@
 - добавлен `RELEASE_BODY_v1.0-pre.md`
 - добавлены issue templates и PR template
 - добавлены release/check/build docs
-- добавлены файлы для Codex handoff
 
 ### Репозиторий
 - https://github.com/leontevova2313-max/Eclipse-addon

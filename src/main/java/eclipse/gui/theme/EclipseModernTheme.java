@@ -147,10 +147,7 @@ public class EclipseModernTheme extends MeteorGuiTheme {
 
     @Override
     public WidgetScreen moduleScreen(Module module) {
-        WidgetScreen screen = super.moduleScreen(module);
-        screen.padding = scale(6 * density.get());
-        screen.spacing = scale(4 * density.get());
-        return screen;
+        return super.moduleScreen(module);
     }
 
     @Override
@@ -213,11 +210,11 @@ public class EclipseModernTheme extends MeteorGuiTheme {
     }
 
     public Color headerShadowColor() {
-        return new Color(0, 0, 0, shadows.get() && !EclipseConfig.reducedEffects() ? 34 : 0);
+        return new Color(0, 0, 0, shadows.get() && !EclipseConfig.performanceMode() ? 34 : 0);
     }
 
     public Color shadowColor(double strength) {
-        int alpha = shadows.get() && !EclipseConfig.reducedEffects() ? (int) Math.round(30 * strength) : 0;
+        int alpha = shadows.get() && !EclipseConfig.performanceMode() ? (int) Math.round(30 * strength) : 0;
         return new Color(0, 0, 0, alpha);
     }
 }
