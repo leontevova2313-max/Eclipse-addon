@@ -9,7 +9,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.Locale;
 import java.util.Map;
@@ -22,7 +24,7 @@ public final class DiagnosticExporter {
     public static void export(Path sessionDir, DiagnosticStore store, DiagnosticSessionStats stats, String reason, String activeModules) throws IOException {
         Files.createDirectories(sessionDir);
         writeSession(sessionDir.resolve("session.md"), stats);
-        writeEvents(sessionDir.resolve("events.csv"), store);
+        writeEvents(sessionDir.resolve("events.csv"), store, stats);
         writeSummary(sessionDir.resolve("summary.md"), store, stats, reason, activeModules);
     }
 
@@ -39,7 +41,8 @@ public final class DiagnosticExporter {
         ServerInfo info = mc.getCurrentServerEntry();
         try (BufferedWriter writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
             writer.write("# Eclipse Server Diagnostics\n\n");
-            writer.write("- Started: " + LocalDateTime.now() + "\n");
+            writer.write("- Started: " + localTime(stats.startedAt) + "\n");
+            writer.write("- Exported: " + LocalDateTime.now() + "\n");
             writer.write("- Target: " + (info != null ? info.address : mc.isInSingleplayer() ? "singleplayer" : "unknown") + "\n");
             writer.write("- Server type: " + (info != null ? info.getServerType() : "integrated") + "\n");
             writer.write("- Initial ping: " + (info != null ? info.ping : -1) + "\n");
@@ -50,18 +53,22 @@ public final class DiagnosticExporter {
         }
     }
 
-    private static void writeEvents(Path file, DiagnosticStore store) throws IOException {
+    private static void writeEvents(Path file, DiagnosticStore store, DiagnosticSessionStats stats) throws IOException {
         try (BufferedWriter writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-            writer.write("elapsed_ms,category,type,detail,module_context\n");
-            for (DiagnosticCategory category : DiagnosticCategory.values()) {
-                for (DiagnosticEvent event : store.events().get(category)) {
-                    writer.write(event.elapsedMs() + ","
-                        + category + ","
-                        + csv(event.type()) + ","
-                        + csv(event.detail()) + ","
-                        + csv(event.moduleContext()));
-                    writer.newLine();
-                }
+            writer.write("absolute_time,elapsed_ms,category,type,detail,module_context\n");
+            var events = store.events().values().stream()
+                .flatMap(buffer -> buffer.stream())
+                .sorted(Comparator.comparingLong(DiagnosticEvent::elapsedMs))
+                .toList();
+
+            for (DiagnosticEvent event : events) {
+                writer.write(localTime(stats.startedAt + event.elapsedMs()) + ","
+                    + event.elapsedMs() + ","
+                    + event.category() + ","
+                    + csv(event.type()) + ","
+                    + csv(event.detail()) + ","
+                    + csv(event.moduleContext()));
+                writer.newLine();
             }
         }
     }
@@ -133,5 +140,9 @@ public final class DiagnosticExporter {
 
     private static String fmt(double value) {
         return String.format(Locale.ROOT, "%.3f", value);
+    }
+
+    private static LocalDateTime localTime(long epochMs) {
+        return LocalDateTime.ofInstant(Instant.ofEpochMilli(epochMs), ZoneId.systemDefault());
     }
 }

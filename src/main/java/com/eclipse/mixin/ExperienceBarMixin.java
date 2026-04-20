@@ -1,6 +1,6 @@
 package com.eclipse.mixin;
 
-import eclipse.modules.LitematicaPrinter;
+import eclipse.modules.utility.LitematicaPrinter;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.bar.ExperienceBar;

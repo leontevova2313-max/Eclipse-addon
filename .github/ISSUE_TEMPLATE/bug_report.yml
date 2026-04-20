@@ -1,0 +1,63 @@
+name: Bug report
+description: Сообщить о баге или регрессии
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо. Заполни форму максимально конкретно.
+  - type: input
+    id: summary
+    attributes:
+      label: Краткое описание
+      placeholder: Что именно сломано?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги воспроизведения
+      placeholder: |
+        1. Открыл ...
+        2. Нажал ...
+        3. Получил ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ожидаемое поведение
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Фактическое поведение
+    validations:
+      required: true
+  - type: input
+    id: mc
+    attributes:
+      label: Версия Minecraft
+      placeholder: 1.21.11
+  - type: input
+    id: meteor
+    attributes:
+      label: Версия Meteor
+      placeholder: 1.21.11-SNAPSHOT
+  - type: input
+    id: loader
+    attributes:
+      label: Версия Fabric Loader
+      placeholder: 0.18.2
+  - type: textarea
+    id: logs
+    attributes:
+      label: Логи / stacktrace
+      render: shell
+  - type: textarea
+    id: extra
+    attributes:
+      label: Дополнительно
+      placeholder: Скриншоты, видео, конфиг, подозрения

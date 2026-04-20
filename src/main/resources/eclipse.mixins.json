@@ -4,17 +4,15 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "CameraMixin",
-    "ChatHudMixin",
+    "ChatScreenMixin",
     "ExperienceBarMixin",
     "GameMenuScreenMixin",
     "GameRendererMixin",
     "InGameHudMixin",
     "InputAccessor",
-    "ModuleToggleMixin",
-    "PlayerSkinWidgetAccessor",
-    "PlayerListEntryMixin",
     "ScreenAccessor",
     "ScreenBackgroundMixin",
+    "ScreenOverlayMixin",
     "TitleScreenMixin"
   ],
   "injectors": {

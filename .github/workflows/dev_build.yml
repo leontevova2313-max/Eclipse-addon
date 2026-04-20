@@ -1,12 +1,5 @@
-name: Publish EclipseBeta
-
-on:
-  push:
-    branches:
-      - main
-
-permissions:
-  contents: write
+name: Publish Development Build
+on: push
 
 jobs:
   build:
@@ -30,25 +23,12 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
 
-      - name: Prepare EclipseBeta artifact
-        run: |
-          mkdir -p build/release
-          cp build/libs/*.jar build/release/EclipseBeta.jar
-
-      - name: Publish EclipseBeta release
+      - name: Release
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: EclipseBeta
-          name: EclipseBeta
+          tag_name: snapshot
+          name: Dev Build
           prerelease: true
-          body: |
-            Beta build of Eclipse Addon.
-
-            Status:
-            - Project is in beta.
-            - Project was made 100% by AI according to user requirements and edits.
-            - Development target: play.karasique.com.
-            - Litematica printer is a reworked addon originally made by twilight.
           files: |
-            ./build/release/EclipseBeta.jar
+            ./build/libs/*.jar

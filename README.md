@@ -1,217 +1,123 @@
-# Eclipse-Addon
+# Eclipse Addon
 
-<p align="center">
-  <img src="docs/eclipse_logo.png" alt="Eclipse-Addon" width="720">
-</p>
+![Eclipse logo](docs/eclipse_logo.png)
 
-## English
+Современный addon для **Meteor Client** с обновлённым интерфейсом, компактной темой **Eclipse Modern**, доработанным визуалом, cleanup по коду и GitHub-ready структурой.
 
-Eclipse-Addon is a client-side Meteor Client addon for Minecraft `1.21.11`.
-This repository is prepared as a clean public release with documented modules,
-settings, installation steps, limitations, and release notes.
+> **Версия:** `1.0-pre`  
+> **Репозиторий:** `https://github.com/leontevova2313-max/Eclipse-addon`  
+> **Подготовлено как исходник:** да, это исходный проект со всеми внесёнными фиксами и файлами для GitHub.
 
-### Status
+## Что вошло в 1.0-pre
 
-- Release line: public release.
-- Current project version: `1.0.0`.
-- Minecraft: `1.21.11`.
-- Fabric Loader: `0.18.2`.
-- Yarn mappings: `1.21.11+build.3`.
-- Meteor Client: `1.21.11-SNAPSHOT`.
+- **Eclipse Modern Theme** — строгий компактный UI для Meteor в стиле минималистичных полупрозрачных плиток.
+- **Реальная интеграция темы** — тема лежит не мёртвым грузом, а подключается и применяется из кода.
+- **Code cleanup** — исправления логики `performanceMode`, меньше хардкодов, безопаснее diagnostics, меньше лишних аллокаций.
+- **GitHub-ready репозиторий** — README, changelog, release notes, issue templates, PR template, release checklist.
+- **Codex handoff** — отдельные инструкции, чтобы Codex было проще продолжать обновления без путаницы.
 
-### What Eclipse-Addon Adds
+## Основные категории
 
-- Custom Eclipse title screen, menu background, logo layout, skin preview, and notifier.
-- Skin preview and official account skin/cape tools for the active Minecraft session.
-- Chat quality fixes for links and quick private replies without breaking signed chat.
-- Middle-click target inspection with player friend add notifications and entity preview.
-- Movement and packet utility modules for controlled testing.
-- Litematica printer with range, retry, skip, inventory, and placement verification logic.
-- Server intelligence helpers for chunks, sounds, coordinates, and ore-related observations.
+- **Combat**
+- **Movement**
+- **Visuals**
+- **Chat**
+- **Utility**
+- **Network**
 
-### Release Modules
+## Ключевые изменения по коду
 
-Stable / release-ready:
+- реально подключена и автоприменяется тема `Eclipse Modern`
+- исправлена интеграция темы и импорт `SettingColor`
+- выровнена логика `performanceMode` и `adaptivePerformance`
+- убран двойной рендер `EclipseToastOverlay`
+- убран хардкод `5.0` в `GameRendererMixin`
+- убран special-case хардкод сервера из diagnostics
+- усилена безопасность snapshot/export в `DiagnosticStore`
+- добавлен недостающий `transition_glow.png`
+- уменьшены лишние аллокации в части логики `LitematicaPrinter`
+- добавлен кэш skin/profile для title screen
 
-- `eclipse-visuals`
-- `chat-fix`
-- `middle-click-info`
-- `eclipse-camera`
-- `eclipse-name-guard`
+Подробности:
+- [CHANGELOG.md](CHANGELOG.md)
+- [RELEASE_NOTES.md](RELEASE_NOTES.md)
+- [MODERN_GUI_NOTES.md](MODERN_GUI_NOTES.md)
+- [CODE_REWORK_NOTES.md](CODE_REWORK_NOTES.md)
+- [FIXES_APPLIED.md](FIXES_APPLIED.md)
+- [docs/TECHNICAL_OVERVIEW.md](docs/TECHNICAL_OVERVIEW.md)
 
-Advanced / server-sensitive:
+## Визуальное направление
 
-- `litematica-printer`
-- `eclipse-elytra`
-- `eclipse-velocity`
-- `eclipse-move`
-- `eclipse-flight`
-- `eclipse-no-slow`
-- `pearl-phase`
-- `ping-spoof`
-- `eclipse-server-intel`
-- `external-cheat-trace`
+![Modern GUI preview](docs/screenshots/modern-gui-preview.png)
 
-Internal / not registered in this release:
+Цель темы:
+- компактнее
+- строже
+- чище
+- практичнее
+- без грязного blur и перегруза
+- с мягкими тенями и аккуратной полупрозрачностью
 
-- `eclipse-anti-crash`
-- `eclipse-custom-packets`
-- `server-auto-setup`
-- `server-diagnostics`
+## Быстрый старт
 
-These internal modules still exist in source form, but they are not added to the
-Meteor module list in the clean release runtime.
+### Клонирование
 
-### Installation
-
-See [docs/INSTALL.md](docs/INSTALL.md).
-
-Short version:
-
-1. Install Fabric Loader for Minecraft `1.21.11`.
-2. Install Meteor Client for Minecraft `1.21.11`.
-3. Put the Eclipse-Addon jar in your Minecraft `mods` folder.
-4. Start the game.
-5. Open Meteor GUI and find the `Eclipse` category.
-
-### Documentation
-
-- [Project overview](docs/PROJECT_OVERVIEW.md)
-- [Release notes](RELEASE_NOTES.md)
-- [Changelog](CHANGELOG.md)
-- [Installation](docs/INSTALL.md)
-- [Modules](docs/MODULES.md)
-- [Settings](docs/SETTINGS.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [FAQ](docs/FAQ.md)
-
-### Building
-
-```powershell
-.\gradlew.bat build
+```bash
+git clone https://github.com/leontevova2313-max/Eclipse-addon.git
+cd Eclipse-addon
 ```
-
-The jar is created in:
-
-```text
-build/libs/
-```
-
-### Important Notes
-
-- Some movement and packet modules depend heavily on server rules, ping, TPS,
-  anticheat behavior, and player inventory state.
-- Official skin/cape actions use the active Minecraft session only. The addon
-  does not fake authentication and does not spoof account identity.
-- Litematica is optional for launching the addon, but required for
-  `litematica-printer`.
-- This addon does not include Minecraft, Meteor Client, Fabric Loader, or
-  Litematica.
-
-## Русский
-
-Eclipse-Addon - клиентский addon для Meteor Client под Minecraft `1.21.11`.
-Репозиторий подготовлен как чистый публичный релиз: с описанием модулей,
-настроек, установки, ограничений и релизных заметок.
-
-### Статус
-
-- Линейка релиза: публичный релиз.
-- Текущая версия проекта: `1.0.0`.
-- Minecraft: `1.21.11`.
-- Fabric Loader: `0.18.2`.
-- Yarn mappings: `1.21.11+build.3`.
-- Meteor Client: `1.21.11-SNAPSHOT`.
-
-### Что добавляет Eclipse-Addon
-
-- Кастомный главный экран Eclipse, фон меню, layout логотипа, preview скина и notifier.
-- Preview скина и официальные инструменты скинов/плащей для активной Minecraft-сессии.
-- Исправления чата для ссылок и быстрых личных сообщений без поломки signed chat.
-- Middle-click проверка целей, добавление игроков в друзья и preview сущностей.
-- Movement и packet utility модули для контролируемого тестирования.
-- Litematica printer с range, retry, skip, inventory и verification логикой.
-- Server intelligence helpers для чанков, звуков, координат и наблюдений по миру.
-
-### Модули релиза
-
-Стабильные / готовые к обычному использованию:
-
-- `eclipse-visuals`
-- `chat-fix`
-- `middle-click-info`
-- `eclipse-camera`
-- `eclipse-name-guard`
-
-Продвинутые / зависят от сервера:
-
-- `litematica-printer`
-- `eclipse-elytra`
-- `eclipse-velocity`
-- `eclipse-move`
-- `eclipse-flight`
-- `eclipse-no-slow`
-- `pearl-phase`
-- `ping-spoof`
-- `eclipse-server-intel`
-- `external-cheat-trace`
-
-Внутренние / не зарегистрированы в этом релизе:
-
-- `eclipse-anti-crash`
-- `eclipse-custom-packets`
-- `server-auto-setup`
-- `server-diagnostics`
-
-Эти внутренние модули остаются в исходниках, но не добавляются в список модулей
-Meteor в чистом runtime-релизе.
-
-### Установка
-
-Смотри [docs/INSTALL.md](docs/INSTALL.md).
-
-Коротко:
-
-1. Установи Fabric Loader для Minecraft `1.21.11`.
-2. Установи Meteor Client для Minecraft `1.21.11`.
-3. Положи jar Eclipse-Addon в папку `mods`.
-4. Запусти игру.
-5. Открой Meteor GUI и найди категорию `Eclipse`.
-
-### Документация
-
-- [Обзор проекта](docs/PROJECT_OVERVIEW.md)
-- [Релизные заметки](RELEASE_NOTES.md)
-- [История изменений](CHANGELOG.md)
-- [Установка](docs/INSTALL.md)
-- [Модули](docs/MODULES.md)
-- [Настройки](docs/SETTINGS.md)
-- [Решение проблем](docs/TROUBLESHOOTING.md)
-- [FAQ](docs/FAQ.md)
 
 ### Сборка
 
-```powershell
-.\gradlew.bat build
+```bash
+./gradlew build
 ```
 
-Готовый jar создаётся здесь:
+На Windows:
 
-```text
-build/libs/
+```bat
+gradlew.bat build
 ```
 
-### Важные замечания
+Готовый jar будет в `build/libs`.
 
-- Movement и packet модули сильно зависят от правил сервера, ping, TPS,
-  anticheat, состояния инвентаря и текущей ситуации в игре.
-- Официальные действия со скинами и плащами используют только активную
-  Minecraft-сессию. Addon не подделывает авторизацию и не spoof-ит аккаунты.
-- Litematica не нужна для запуска addon, но нужна для `litematica-printer`.
-- Этот addon не включает Minecraft, Meteor Client, Fabric Loader или Litematica.
+## Публикация релиза
 
-## License / Лицензия
+Текущий целевой тег:
+- **v1.0-pre**
 
-The project uses the `CC0-1.0` license. See [LICENSE](LICENSE).
+Файлы для релиза:
+- [docs/releases/v1.0-pre.md](docs/releases/v1.0-pre.md)
+- [RELEASE_NOTES.md](RELEASE_NOTES.md)
+- [RELEASE_BODY_v1.0-pre.md](RELEASE_BODY_v1.0-pre.md)
 
-Проект использует лицензию `CC0-1.0`. Смотри [LICENSE](LICENSE).
+Ссылка под релиз:
+- https://github.com/leontevova2313-max/Eclipse-addon/releases/tag/v1.0-pre
+
+## Для Codex
+
+Чтобы Codex легче продолжал проект, добавлены:
+- [AGENTS.md](AGENTS.md)
+- [CODEX_HANDOFF.md](CODEX_HANDOFF.md)
+- [CODEX_UPDATE_PROMPT.md](CODEX_UPDATE_PROMPT.md)
+
+Там описано:
+- какие файлы считать точками входа
+- где лежит тема
+- где уже были фиксы
+- что менять аккуратно
+- что не ломать без необходимости
+
+## Локальная проверка
+
+Перед пушем и релизом проверь:
+- [docs/LOCAL_BUILD_CHECKLIST.md](docs/LOCAL_BUILD_CHECKLIST.md)
+- [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)
+
+## Важно
+
+Полная Gradle-сборка в этой среде **не была подтверждена до конца**, потому что контейнер не может скачать внешние зависимости. Исходник и структура подготовлены, но финальный `build` и прогон в IDE надо проверить локально.
+
+## License
+
+Смотри [LICENSE](LICENSE).

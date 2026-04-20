@@ -4,6 +4,12 @@
 build/
 out/
 classes/
+logs/
+crash-reports/
+caches/
+*.class
+*.jar
+*.log
 
 # eclipse
 

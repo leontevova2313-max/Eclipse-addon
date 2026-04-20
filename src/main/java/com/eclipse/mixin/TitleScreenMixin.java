@@ -1,23 +1,24 @@
 package com.eclipse.mixin;
 
 import eclipse.EclipseConfig;
-import eclipse.gui.EclipseCustomizationScreen;
 import eclipse.gui.TitleLogoLayout;
-import eclipse.skins.SkinCustomizationManager;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.gui.LogoDrawer;
-import net.minecraft.client.gui.screen.SplashTextRenderer;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.TitleScreen;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.ClickableWidget;
-import net.minecraft.client.gui.widget.PlayerSkinWidget;
+import net.minecraft.client.render.entity.model.EntityModelLayer;
+import net.minecraft.client.render.entity.model.EntityModelLayers;
+import net.minecraft.client.render.entity.model.PlayerEntityModel;
+import net.minecraft.entity.player.PlayerSkinType;
+import net.minecraft.entity.player.SkinTextures;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -46,11 +47,38 @@ public abstract class TitleScreenMixin {
     @Unique
     private static final Identifier LOGO = Identifier.of("eclipse", "textures/gui/title/eclipse_logo.png");
 
-    @Shadow
-    private SplashTextRenderer splashText;
+    @Unique
+    private static final EntityModelLayer eclipse$slimPlayerLayer = new EntityModelLayer(Identifier.ofVanilla("player_slim"), "main");
 
     @Unique
-    private PlayerSkinWidget eclipse$skinWidget;
+    private PlayerEntityModel eclipse$wideSkinModel;
+
+    @Unique
+    private PlayerEntityModel eclipse$slimSkinModel;
+
+    @Unique
+    private int eclipse$skinModelX;
+
+    @Unique
+    private int eclipse$skinModelY;
+
+    @Unique
+    private int eclipse$skinModelW;
+
+    @Unique
+    private int eclipse$skinModelH;
+
+    @Unique
+    private float eclipse$headPitch;
+
+    @Unique
+    private float eclipse$headYaw;
+
+    @Unique
+    private float eclipse$bodyPitch;
+
+    @Unique
+    private float eclipse$bodyYaw;
 
     @Unique
     private int eclipse$titleButtonRows = 6;
@@ -76,11 +104,9 @@ public abstract class TitleScreenMixin {
     };
 
     @Inject(method = "init", at = @At("TAIL"))
-    private void eclipse$addCustomizationButton(CallbackInfo ci) {
+    private void eclipse$addProfileModel(CallbackInfo ci) {
         TitleScreen self = (TitleScreen) (Object) this;
         MinecraftClient client = MinecraftClient.getInstance();
-        SkinCustomizationManager.load();
-        if (EclipseConfig.titleLogo()) splashText = null;
         int width = client.getWindow().getScaledWidth();
         int height = client.getWindow().getScaledHeight();
 
@@ -88,23 +114,13 @@ public abstract class TitleScreenMixin {
             eclipse$layoutTitleButtons(self);
         }
 
-        int modelW = 76;
-        int modelH = 116;
-        int modelX = 22;
-        int modelY = Math.max(42, height / 4 + 4);
-        eclipse$skinWidget = new PlayerSkinWidget(modelW, modelH, client.getLoadedEntityModels(), SkinCustomizationManager::currentSkinTextures);
-        eclipse$skinWidget.setX(modelX);
-        eclipse$skinWidget.setY(modelY);
-        ((ScreenAccessor) self).eclipse$addDrawableChild(eclipse$skinWidget);
+        eclipse$skinModelW = 56;
+        eclipse$skinModelH = 90;
+        eclipse$skinModelX = Math.max(12, Math.min(width - eclipse$skinModelW - 56, width - width / 5 - eclipse$skinModelW / 2));
+        eclipse$skinModelY = Math.max(50, height / 2 + 22);
 
-        ((ScreenAccessor) self).eclipse$addDrawableChild(ButtonWidget.builder(Text.translatable("eclipse.menu.customization"), button ->
-            client.setScreen(new EclipseCustomizationScreen(self))
-        ).dimensions(modelX - 4, modelY + modelH + 8, modelW + 8, 20).build());
-    }
-
-    @Inject(method = "render", at = @At("HEAD"))
-    private void eclipse$disableVanillaSplash(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (EclipseConfig.titleLogo()) splashText = null;
+        eclipse$wideSkinModel = new PlayerEntityModel(client.getLoadedEntityModels().getModelPart(EntityModelLayers.PLAYER), false);
+        eclipse$slimSkinModel = new PlayerEntityModel(client.getLoadedEntityModels().getModelPart(eclipse$slimPlayerLayer), true);
     }
 
     @Inject(method = "renderBackground", at = @At("HEAD"), cancellable = true)
@@ -202,10 +218,27 @@ public abstract class TitleScreenMixin {
         }
     }
 
+    @Inject(method = "render", at = @At("HEAD"))
+    private void eclipse$updateProfileHeadTracking(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        if (eclipse$wideSkinModel == null || eclipse$slimSkinModel == null) return;
+
+        float centerX = eclipse$skinModelX + eclipse$skinModelW / 2.0F;
+        float centerY = eclipse$skinModelY + eclipse$skinModelH * 0.28F;
+        float dx = MathHelper.clamp((mouseX - centerX) / Math.max(1.0F, eclipse$skinModelW * 1.15F), -1.0F, 1.0F);
+        float dy = MathHelper.clamp((mouseY - centerY) / Math.max(1.0F, eclipse$skinModelH * 0.85F), -1.0F, 1.0F);
+
+        eclipse$headYaw = dx * 0.72F;
+        eclipse$headPitch = dy * 0.42F;
+        eclipse$bodyYaw = eclipse$headYaw * 0.18F;
+        eclipse$bodyPitch = eclipse$headPitch * 0.08F;
+    }
+
     @Inject(method = "render", at = @At("TAIL"))
     private void eclipse$renderLogo(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        eclipse$renderProfileModel(context);
+        eclipse$renderProfileName(context);
+
         if (!EclipseConfig.titleLogo()) return;
-        eclipse$renderSkinDisplayName(context);
 
         TitleLogoLayout.Bounds layout = TitleLogoLayout.calculate(
             context.getScaledWindowWidth(),
@@ -228,18 +261,87 @@ public abstract class TitleScreenMixin {
     }
 
     @Unique
-    private void eclipse$renderSkinDisplayName(DrawContext context) {
-        if (eclipse$skinWidget == null) return;
+    private SkinTextures eclipse$currentSessionSkin() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        return client.getSkinProvider().supplySkinTextures(client.getGameProfile(), false).get();
+    }
+
+    @Unique
+    private void eclipse$renderProfileName(DrawContext context) {
+        if (eclipse$wideSkinModel == null || eclipse$slimSkinModel == null) return;
 
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.textRenderer == null) return;
+        String username = client.getSession().getUsername();
+        int x = eclipse$skinModelX + eclipse$skinModelW / 2;
+        int y = Math.max(8, eclipse$skinModelY - 21);
+        context.drawCenteredTextWithShadow(client.textRenderer, Text.literal(username), x, y, 0xFFFFFFFF);
+    }
 
-        String name = client.textRenderer.trimToWidth(SkinCustomizationManager.displayName(), Math.max(80, eclipse$skinWidget.getWidth() + 48));
-        int textWidth = client.textRenderer.getWidth(name);
-        int centerX = eclipse$skinWidget.getX() + eclipse$skinWidget.getWidth() / 2;
-        centerX = Math.max(textWidth / 2 + 6, Math.min(context.getScaledWindowWidth() - textWidth / 2 - 6, centerX));
-        int y = Math.max(8, eclipse$skinWidget.getY() - 14);
-        context.drawCenteredTextWithShadow(client.textRenderer, name, centerX, y, 0xFFEAF7F2);
+    @Unique
+    private void eclipse$renderProfileModel(DrawContext context) {
+        if (eclipse$wideSkinModel == null || eclipse$slimSkinModel == null) return;
+
+        SkinTextures textures = eclipse$currentSessionSkin();
+        PlayerEntityModel model = textures.model() == PlayerSkinType.SLIM ? eclipse$slimSkinModel : eclipse$wideSkinModel;
+        eclipse$poseProfileModel(model);
+
+        float scale = 0.97F * eclipse$skinModelH / 2.125F;
+        context.addPlayerSkin(
+            model,
+            textures.body().texturePath(),
+            scale,
+            0.0F,
+            0.0F,
+            -1.0625F,
+            eclipse$skinModelX,
+            eclipse$skinModelY,
+            eclipse$skinModelX + eclipse$skinModelW,
+            eclipse$skinModelY + eclipse$skinModelH
+        );
+    }
+
+    @Unique
+    private void eclipse$poseProfileModel(PlayerEntityModel model) {
+        model.head.resetTransform();
+        model.hat.resetTransform();
+        model.body.resetTransform();
+        model.rightArm.resetTransform();
+        model.leftArm.resetTransform();
+        model.rightLeg.resetTransform();
+        model.leftLeg.resetTransform();
+        model.jacket.resetTransform();
+        model.rightSleeve.resetTransform();
+        model.leftSleeve.resetTransform();
+        model.rightPants.resetTransform();
+        model.leftPants.resetTransform();
+
+        model.head.setAngles(eclipse$headPitch, eclipse$headYaw, 0.0F);
+        model.hat.setAngles(eclipse$headPitch, eclipse$headYaw, 0.0F);
+        model.body.setAngles(eclipse$bodyPitch, eclipse$bodyYaw, 0.0F);
+        model.rightArm.setAngles(eclipse$bodyPitch * 0.45F, eclipse$bodyYaw * 0.70F, 0.0F);
+        model.leftArm.setAngles(eclipse$bodyPitch * 0.45F, eclipse$bodyYaw * 0.70F, 0.0F);
+        model.rightLeg.setAngles(0.0F, eclipse$bodyYaw * 0.35F, 0.0F);
+        model.leftLeg.setAngles(0.0F, eclipse$bodyYaw * 0.35F, 0.0F);
+
+        eclipse$copyModelPartTransform(model.hat, model.head);
+        eclipse$copyModelPartTransform(model.jacket, model.body);
+        eclipse$copyModelPartTransform(model.rightSleeve, model.rightArm);
+        eclipse$copyModelPartTransform(model.leftSleeve, model.leftArm);
+        eclipse$copyModelPartTransform(model.rightPants, model.rightLeg);
+        eclipse$copyModelPartTransform(model.leftPants, model.leftLeg);
+    }
+
+    @Unique
+    private void eclipse$copyModelPartTransform(ModelPart target, ModelPart source) {
+        target.originX = source.originX;
+        target.originY = source.originY;
+        target.originZ = source.originZ;
+        target.pitch = source.pitch;
+        target.yaw = source.yaw;
+        target.roll = source.roll;
+        target.xScale = source.xScale;
+        target.yScale = source.yScale;
+        target.zScale = source.zScale;
     }
 
     @Unique

@@ -1,0 +1,33 @@
+name: Feature request
+description: Предложить новую функцию или улучшение
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: input
+    id: summary
+    attributes:
+      label: Кратко
+      placeholder: Что ты хочешь добавить?
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Какую проблему это решает?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Предлагаемое решение
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Альтернативы
+  - type: textarea
+    id: extra
+    attributes:
+      label: Дополнительно
+      placeholder: Макеты, скриншоты, ссылки, технические идеи
